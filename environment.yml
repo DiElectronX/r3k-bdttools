@@ -1,0 +1,10 @@
+name: r3k_bdttools
+channels:
+  - defaults
+dependencies:
+  - python=3.8
+  - root
+  - numpy
+  - awkward
+  - scikit-learn
+  - xgboost
