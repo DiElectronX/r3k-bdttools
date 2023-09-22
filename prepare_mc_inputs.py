@@ -317,26 +317,19 @@ if __name__ == '__main__':
     parser.add_argument('--lepton', dest='lepton', default='PFe', choices=['PFe', 'Mu', 'LowPt'], type=str, help='choices reco lepton options: Mu, PFe, or LowPt')
     parser.add_argument('-l', '--label',dest='label',default='',type=str)
     parser.add_argument('--addHighQtrain', dest='AddHighQ', default=False, action='store_true')
+    parser.add_argument('-i', '--inpath',dest='inpath',default='/eos/cms/store/group/phys_bphys/DiElectronX/nzipper/Skims/MC_Rare_Skims',type=str)
     parser.add_argument('-o', '--outpath',dest='outpath',default='.',type=str)
     args=parser.parse_args()
 
     # read inputs
-    # filedir='/Users/noahzipper/Desktop/Research/Rk/Data_MC_Comparisons/RootFiles/CMG_MC_Ntuples'
-    # filedir='/eos/cms/store/group/phys_bphys/DiElectronX/nzipper/Skims/MC_JPsi_Skims'
-    filedir='/eos/cms/store/group/phys_bphys/DiElectronX/nzipper/Skims/MC_Rare_Skims'
-    # files = sorted([(f, os.path.getsize(f)) for f in glob(filedir+'/**/*.root',recursive=True)], key=lambda l: l[1], reverse=True)
-    files = glob(filedir+'/**/*.root',recursive=True)[:args.total]
+    files = [args.inpath] if args.inpath.endswith('.root') else glob(args.inpath+'/**/*.root',recursive=True)[:args.total]
+    # files = glob(filedir+'/**/*.root',recursive=True)[:args.total]
 
     # parameters
     args.writeMeasurment = True #prints measurment in the final root file. Does nothing in the code. Essentially data is used for bkg and testing
     args.useLowQ = False
     args.specificTrigger = None # options: None (without quotes): not requiring specific path or HLT path
-    arg.sselectEtaBin = None # options: None (without quotes), BB, BE_EE
-    rt DISPLAY=localhost:12.0
-    rr
-
-
-
+    args.selectEtaBin = None # options: None (without quotes), BB, BE_EE
     args.sortby = 'leppt' #two options eltype (1 ->PF 2->low) or leppt (1 -> leading, 2->subleading) use first for kmumu kee (with 2pf ) and the second for kee (low + pf)
     args.addMlkVariables = False #for now only for muons... Also takes gen charge for the opposite sign pair
 
