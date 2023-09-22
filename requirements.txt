@@ -1,4 +1,3 @@
-root
 numpy
 awkward
 scikit-learn
