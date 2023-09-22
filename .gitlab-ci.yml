@@ -6,8 +6,7 @@ make_env:
   stage: build
   image: python:3.8-slim-bullseye
   script:
-    - apt update
-    - apt install -y wget
+    - apt-get update && apt-get install -y wget
     - pip install --upgrade pip
     - pip install -r requirements.txt
   artifacts:
