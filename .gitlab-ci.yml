@@ -18,7 +18,7 @@ prepare_data_inputs:
 
 prepare_mc_inputs:
   stage: prepare_inputs
-  image: rootproject/root:6.28.04-conda
+  image: rootproject/root:latest
   before_script:
     - apt-get update && apt-get install -y wget
     - pip install --upgrade pip
