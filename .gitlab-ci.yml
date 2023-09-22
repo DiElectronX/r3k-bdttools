@@ -1,8 +1,8 @@
 stages:
-  - test_data_inputs
+  - prepare_inputs
 
-prepare_data_inputs_test:
-  stage: test_data_inputs
+prepare_data_inputs:
+  stage: prepare_inputs
   image: python:3.8-slim-bullseye
   before_script:
     - apt-get update && apt-get install -y wget
@@ -12,6 +12,21 @@ prepare_data_inputs_test:
     - mkdir outputs
   script:
     - python prepare_data_inputs.py -m split -o ./outputs -i test_data_ntuple.root -l cicd
+  artifacts:
+    paths:
+      - outputs/
+
+prepare_mc_inputs:
+  stage: prepare_inputs
+  image: rootproject/root:6.28.04-conda
+  before_script:
+    - apt-get update && apt-get install -y wget
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+    - wget http://www-hep.colorado.edu/~nzipper/cicd_files/test_mc_ntuple.root
+    - mkdir outputs
+  script:
+    - python prepare_mc_inputs.py -m split -o ./outputs -i test_mc_ntuple.root -l cicd
   artifacts:
     paths:
       - outputs/
