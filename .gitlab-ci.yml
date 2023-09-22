@@ -6,10 +6,6 @@ make_env:
   stage: build
   image: python:3.8-slim-bullseye
   script:
-    - apt-get update -q -y
-    - apt-get install -y python-pip
-    - python -V
-    - echo "hello world"
     - pip install -r requirements.txt
   artifacts:
     untracked: true
