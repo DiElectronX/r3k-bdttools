@@ -20,7 +20,7 @@ prepare_mc_inputs:
   stage: prepare_inputs
   image: rootproject/root:latest
   before_script:
-    - apt-get update && apt-get install -y wget
+    - apt-get update && apt-get install -y -qq wget && apt-get install -y -qq pip
     - pip install --upgrade pip
     - pip install -r requirements.txt
     - wget http://www-hep.colorado.edu/~nzipper/cicd_files/test_mc_ntuple.root
