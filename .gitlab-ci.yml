@@ -11,7 +11,7 @@ prepare_data_inputs_test:
     - wget http://www-hep.colorado.edu/~nzipper/cicd_files/test_data_ntuple.root
     - mkdir outputs
   script:
-    - python prepare_data_inputs.py -m split -o . -i test_data_ntuple.root -l cicd
+    - python prepare_data_inputs.py -m split -o ./outputs -i test_data_ntuple.root -l cicd
   artifacts:
     paths:
       - outputs/
