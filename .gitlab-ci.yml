@@ -1,0 +1,22 @@
+stages:
+  - build
+  - test
+
+make_env:
+  stage: build
+  image: python:3.8-slim-bullseye
+  script:
+    - apt-get update -q -y
+    - apt-get install -y python-pip
+    - python -V
+    - echo "hello world"
+    - pip install -r requirements.txt
+  artifacts:
+    untracked: true
+
+prepare_data_inputs_test:
+  stage: test
+  image: python:3.8-slim-bullseye
+  script:
+    - echo "First Job Working"
+    # - python prepare_data_inputs.py -m split -o . -i data/test_data_ntuple.root
