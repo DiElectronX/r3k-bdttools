@@ -1,4 +1,5 @@
 numpy
 awkward
+uproot
 scikit-learn
 xgboost
