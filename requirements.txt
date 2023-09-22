@@ -3,3 +3,4 @@ awkward
 uproot
 scikit-learn
 xgboost
+tqdm
