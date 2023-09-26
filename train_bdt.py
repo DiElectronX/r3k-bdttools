@@ -90,14 +90,16 @@ def train_bdt(features, preselection, args, verbose=True):
     lgr.log(f'Accuracy: {round(acc*100,1)}%')
     results = bdt.evals_result()
 
-    fig, ax = plt.subplots()
-    ax.plot(np.arange(len(results['validation_0']['logloss'])), results['validation_0']['logloss'], label='Train')
-    ax.plot(np.arange(len(results['validation_1']['logloss'])), results['validation_1']['logloss'], label='Test')
-    ax.legend()
-    plt.xlabel('Epoch')
-    plt.ylabel('Log Loss')
-    plt.title('XGBoost Log Loss')
-    plt.savefig(os.path.join(outdir,'logloss.png'))
+    if args.plot:
+        print('aasdf')
+        fig, ax = plt.subplots()
+        ax.plot(np.arange(len(results['validation_0']['logloss'])), results['validation_0']['logloss'], label='Train')
+        ax.plot(np.arange(len(results['validation_1']['logloss'])), results['validation_1']['logloss'], label='Test')
+        ax.legend()
+        plt.xlabel('Epoch')
+        plt.ylabel('Log Loss')
+        plt.title('XGBoost Log Loss')
+        plt.savefig(os.path.join(outdir,'logloss.png'))
 
 if __name__ == '__main__':
     print('Imports Done')
@@ -118,6 +120,7 @@ if __name__ == '__main__':
     parser.add_argument('--lossfunction', dest='lossfunction', default='logitraw', type=str, help='loss function')
     parser.add_argument('--nbkg', dest='stop_bkg', default=None,type=int, help='number of background training examples')
     parser.add_argument('--nsig', dest='stop_sig', default=None,type=int, help='number of signal training examples')
+    parser.add_argument('--no_plot', dest='plot', action='store_false', help='dont add loss plot to output directory')
     args, unknown = parser.parse_known_args()
 
     # Select Input Variables
