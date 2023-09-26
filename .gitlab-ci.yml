@@ -1,6 +1,7 @@
 stages:
   - prepare_inputs
   - train
+  - measure
 
 prepare_data_inputs:
   stage: prepare_inputs
@@ -40,6 +41,18 @@ train_test:
     - pip install -r requirements.txt
   script:
     - python train_bdt.py --modelname cicd_test --sigfile ./outputs/trainSgn_bdt_KEE_PFe_lowQ_cicd.root --bkgfile ./outputs/trainBkg_bdt_sideBands_lowQ_cicd.root --outdir ./outputs --ntree 100 --no_plot
+  artifacts:
+    paths:
+      - outputs/
+
+measure_test:
+  stage: measure
+  image: python:3.8-slim-bullseye
+  before_script:
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+  script:
+    - python measure_bdt.py  --fromdir ./outputs/cicd_test --measurefile ./outputs/measurement_bdt_cicd.root
   artifacts:
     paths:
       - outputs/
