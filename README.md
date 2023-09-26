@@ -17,7 +17,8 @@ Preprocessing assumes inout files are formatted according to [Run 3 CMGTools rep
 
 Manually choose options for how to make measurement:
 
-    python measure_bdt.py  --model <model pickle file> --measurefile <measurement file>
+    python measure_bdt.py --model <model pickle file> --measurefile <measurement file>
 
-Use params from directory log gile
-    python measure_bdt.py  --fromdir <training output dir> --measurefile <measurement file>
+Use params from directory log file:
+
+    python measure_bdt.py --fromdir <training output dir> --measurefile <measurement file>
