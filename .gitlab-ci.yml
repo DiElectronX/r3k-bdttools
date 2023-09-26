@@ -1,5 +1,6 @@
 stages:
   - prepare_inputs
+  - train
 
 prepare_data_inputs:
   stage: prepare_inputs
@@ -27,6 +28,18 @@ prepare_mc_inputs:
     - mkdir outputs
   script:
     - python prepare_mc_inputs.py -m split -o ./outputs -i test_mc_ntuple.root -l cicd
+  artifacts:
+    paths:
+      - outputs/
+
+train_test:
+  stage: train
+  image: python:3.8-slim-bullseye
+  before_script:
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+  script:
+    - python train_bdt.py --modelname cicd_test --sigfile ./outputs/trainSgn_bdt_KEE_PFe_lowQ_cicd.root --bkgfile ./outputs/trainBkg_bdt_sideBands_lowQ_cicd.root --outdir ./outputs --ntree 100 --no_plot
   artifacts:
     paths:
       - outputs/
