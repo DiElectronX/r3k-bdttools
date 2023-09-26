@@ -3,7 +3,6 @@ import time
 import argparse
 import numpy as np
 import uproot as ur
-import matplotlib.pyplot as plt
 from joblib import dump
 from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
@@ -91,7 +90,7 @@ def train_bdt(features, preselection, args, verbose=True):
     results = bdt.evals_result()
 
     if args.plot:
-        print('aasdf')
+        import matplotlib.pyplot as plt
         fig, ax = plt.subplots()
         ax.plot(np.arange(len(results['validation_0']['logloss'])), results['validation_0']['logloss'], label='Train')
         ax.plot(np.arange(len(results['validation_1']['logloss'])), results['validation_1']['logloss'], label='Test')
