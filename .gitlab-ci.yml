@@ -10,7 +10,7 @@ typecheck:
   before_script:
     - pip install --upgrade pip && pip install -r requirements.txt && pip install mypy
   script:
-    - mypy --install-types .
+    - mypy .
   allow_failure: true
 
 prepare_data_inputs:
