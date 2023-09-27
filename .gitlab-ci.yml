@@ -9,9 +9,8 @@ typecheck:
   image: python:3.8-slim-bullseye
   before_script:
     - pip install --upgrade pip && pip install -r requirements.txt && pip install mypy
-    - mypy --install-types
   script:
-    - mypy **/*.py
+    - mypy --install-types **/*.py
   allow_failure: true
 
 prepare_data_inputs:
