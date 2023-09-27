@@ -4,13 +4,20 @@ stages:
   - train
   - measure
 
-typecheck:
+my_typecheck:
   stage: codechecks
   image: python:3.8-slim-bullseye
   before_script:
     - pip install --upgrade pip && pip install -r requirements.txt && pip install mypy
   script:
     - mypy .
+  allow_failure: true
+
+ruff_linting:
+  stage: codechecks
+  image: registry.gitlab.com/pipeline-components/ruff:latest
+  script:
+    - ruff --format=gitlab .
   allow_failure: true
 
 prepare_data_inputs:
