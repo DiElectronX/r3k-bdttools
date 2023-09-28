@@ -1,9 +1,6 @@
 import time
 import argparse
 import ROOT as rt
-import uproot as ur
-import awkward as ak
-import numpy as np
 from tqdm import tqdm
 from array import array
 from math import isinf, isnan
@@ -32,8 +29,8 @@ def preprocess_inputs(runFiles,args,branch_dict):
     if args.nstart!=0 or args.nend!=-1: name+='_Evts_'+str(round(args.nstart))+'-'+str(round(args.nend))
     
     if args.specificTrigger:
-        print('Requiring',specificTrigger,' trigger')
-        name+='_'+specificTrigger.split('_')[1]+specificTrigger.split('_')[2]
+        print('Requiring',args.specificTrigger,' trigger')
+        name+='_'+args.specificTrigger.split('_')[1]+args.specificTrigger.split('_')[2]
 
     assert args.sortby=='eltype' or args.sortby=='leppt'
     
@@ -156,7 +153,7 @@ def preprocess_inputs(runFiles,args,branch_dict):
         for cut in branch_dict['presel_dr'].keys():
             if getattr(ev,cut)>branch_dict['presel_dr'][cut]: 
                 skip=True
-                break;
+                break
         if skip:  continue
         #read branches for preselection
         branches={ cut:getattr(ev,cut) for cut in branch_dict['presel'].keys() }  
@@ -165,7 +162,7 @@ def preprocess_inputs(runFiles,args,branch_dict):
         for cut in branches.keys():
             if branches[cut]<branch_dict['presel'][cut]:
                 skip=True
-                break;
+                break
         if skip: continue
         lep1_branches=branch_dict['l1_branches'].copy()
         lep2_branches=branch_dict['l2_branches'].copy()
@@ -215,7 +212,7 @@ def preprocess_inputs(runFiles,args,branch_dict):
                 
 
         #naming
-        presel_daughter=0;
+        presel_daughter=0
         for branch in lep1_branches.keys(): 
             lep1_branches[branch]= lep1_branches[branch].format(order=str(1))
             if lep1_branches[branch] in branch_dict['presel_lep'].keys():
@@ -227,7 +224,7 @@ def preprocess_inputs(runFiles,args,branch_dict):
                 if getattr(ev,branch)>branch_dict['presel_lep'][lep2_branches[branch]]:
                     presel_daughter+=1
 
-        if presel_daughter<len(branch_dict['presel_lep']): continue;
+        if presel_daughter<len(branch_dict['presel_lep']): continue
         eta1=getattr(ev,'{0}_{1}'.format(cols['L1'],'eta'))
         eta2=getattr(ev,'{0}_{1}'.format(cols['L2'],'eta'))
         etaK=getattr(ev,'{0}_{1}'.format(cols['B'],'fit_k_eta'))
@@ -297,11 +294,11 @@ def preprocess_inputs(runFiles,args,branch_dict):
                     if isinf(getattr(ev,key)) or isnan(getattr(ev,key)): 
                             inf_nan_veto=True
         if inf_nan_veto:
-            continue;
-        output_tree.Fill();
+            continue
+        output_tree.Fill()
 
     name+='_'+args.label if args.label else ''
-    output_file = rt.TFile(f'{args.outpath}/{name}.root','RECREATE')
+    rt.TFile(f'{args.outpath}/{name}.root','RECREATE')
     output_tree.Write()
     print(f'{tot} Events Processed')
     print(f'{round(time.time()-tstart)} Seconds Elapsed')

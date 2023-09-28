@@ -2,12 +2,13 @@ import os
 import time
 import argparse
 import numpy as np
-import uproot as ur 
-from joblib import dump 
-from xgboost import XGBClassifier 
+import uproot as ur
+from joblib import dump
+from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from sklearn.utils.class_weight import compute_sample_weight
+
 
 class Logger():
     def __init__(self, filepath, verbose=True):
@@ -47,7 +48,7 @@ def train_bdt(features, preselection, args, verbose=True):
         lgr.log('Preselection Cuts:')
         for k, val in preselection.items():
             lgr.log(f'  -{k}: {val}')
-    lgr.log(f'Model Hyperparameters:')
+    lgr.log('Model Hyperparameters:')
     for arg in list(vars(args))[5:]:
         lgr.log(f'  -{arg}: {getattr(args, arg)}')
 
@@ -58,7 +59,7 @@ def train_bdt(features, preselection, args, verbose=True):
         X, Y, test_size=0.05, random_state=42)
     eval_set = ((X_train, Y_train), (X_test, Y_test))
     weightTrain = compute_sample_weight(class_weight='balanced', y=Y_train)
-    weightTest = compute_sample_weight(class_weight='balanced', y=Y_test)
+    compute_sample_weight(class_weight='balanced', y=Y_test)
 
     # initialize model
     bdt = XGBClassifier(
