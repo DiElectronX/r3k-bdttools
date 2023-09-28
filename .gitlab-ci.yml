@@ -4,7 +4,7 @@ stages:
   - train
   - measure
 
-my_typecheck:
+mypy_typecheck:
   stage: codechecks
   image: python:3.8-slim-bullseye
   before_script:
@@ -17,7 +17,7 @@ ruff_linting:
   stage: codechecks
   image: registry.gitlab.com/pipeline-components/ruff:latest
   script:
-    - ruff --output-format gitlab --ignore E501,E701 .
+    - ruff --format gitlab --ignore E501,E701 .
   allow_failure: true
 
 prepare_data_inputs:
