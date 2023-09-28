@@ -10,14 +10,14 @@ from joblib import load
 
 def load_dir_args(args):
     with open(os.path.join(args.fromdir, 'log.txt')) as f:
-        for l in f:
-            if 'Decay: ' in l:
-                args.decay = l.split('Decay: ', 1)[1].strip()
-            if 'Inputs: ' in l:
+        for line in f:
+            if 'Decay: ' in line:
+                args.decay = line.split('Decay: ', 1)[1].strip()
+            if 'Inputs: ' in line:
                 args.features = ast.literal_eval(
-                    l.split('Inputs: ', 1)[1].strip())
-            if 'Saving Model ' in l:
-                args.model = l.split('Saving Model ', 1)[1].strip()
+                    line.split('Inputs: ', 1)[1].strip())
+            if 'Saving Model ' in line:
+                args.model = line.split('Saving Model ', 1)[1].strip()
 
     print(f'Measuring {args.decay} Decay')
     print(f'Using Model {args.model}')

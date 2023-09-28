@@ -1,5 +1,3 @@
-import os
-import sys
 import argparse
 import numpy as np
 import uproot as ur
@@ -14,7 +12,8 @@ def preprocess_files(input_files, nparts, total):
     else:
         outfiles = np.array_split(np.array(filelist), nparts if nparts!=-1 else mp.cpu_count())
 
-    if not outfiles: raise ValueError('Invalid input path/file')
+    if not outfiles: 
+        raise ValueError('Invalid input path/file')
     return outfiles
 
 def preprocess_inputs(runFiles,ipart,args,branch_dict):
@@ -125,6 +124,7 @@ def preprocess_inputs(runFiles,ipart,args,branch_dict):
                 outleps[br1] = ak.flatten(tree[br1]) * outl1_inl1_mask + ak.flatten(tree[br2]) * outl1_inl2_mask
             #alternative id from tree -- pray not to have inf
             if 'Id' in br1 and sortby=='eltype':
+                branchId_change = [] # Add if switching branch ID
                 outleps[br2] = ak.flatten(tree[branchId_change[0]]) * outl2_inl1_mask + ak.flatten(tree[branchId_change[1]]) * outl2_inl2_mask
             else:
                 #for e2
