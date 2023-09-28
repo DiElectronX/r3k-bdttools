@@ -298,7 +298,7 @@ def preprocess_inputs(runFiles,args,branch_dict):
         output_tree.Fill()
 
     name+='_'+args.label if args.label else ''
-    with rt.TFile(f'{args.outpath}/{name}.root','RECREATE') as outfile:
+    with rt.TFile(f'{args.outpath}/{name}.root','RECREATE'):
         output_tree.Write()
     print(f'{tot} Events Processed')
     print(f'{round(time.time()-tstart)} Seconds Elapsed')
