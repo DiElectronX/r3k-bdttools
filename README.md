@@ -1,5 +1,8 @@
 # BDT (& more) Tools for Testing Run 3 R(K)
 
+![pipeline](https://gitlab.cern.ch/nzipper/r3k-bdttools/badges/master/pipeline.svg)
+
+
 ## Setting up Environment
 You  can set up a computing environment with the necessary Python libraries using a Conda virtual environment `conda env create -f environment.yml`, or if you have a working python distribution, using pip `pip install --upgrade pip && pip install -r requirements.txt`.
 
