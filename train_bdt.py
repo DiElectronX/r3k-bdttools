@@ -1,6 +1,7 @@
 import os
 import time
 import argparse
+import logging
 import numpy as np
 import uproot as ur
 from joblib import dump
@@ -11,23 +12,26 @@ from sklearn.utils.class_weight import compute_sample_weight
 
 
 class Logger():
-    def __init__(self, filepath, verbose=True):
+    def __init__(self, filepath, verbose=True):        
         self.filepath = filepath
         self.verbose = verbose
         if os.path.exists(self.filepath):
             os.remove(self.filepath)
+        
+        log_format = '%(levelname)s | %(asctime)s | %(message)s'
+        logging.basicConfig(level=logging.INFO, format=log_format)
 
     def log(self, string):
         with open(self.filepath, 'a+') as f:
             f.write(string+'\n')
         if self.verbose:
-            print(string)
+            logging.info(string)
 
 
-def train_bdt(features, preselection, args, verbose=True):
+def train_bdt(features, preselection, args):
     outdir = os.path.join(args.outdir if args.outdir else '.', args.modelname)
     os.makedirs(outdir, exist_ok=True)
-    lgr = Logger(os.path.join(outdir, 'log.txt'), verbose=verbose)
+    lgr = Logger(os.path.join(outdir, 'log.txt'), verbose=args.verbose)
 
     # read input data
     lgr.log(f'Signal File: {args.sigfile}')
@@ -70,13 +74,13 @@ def train_bdt(features, preselection, args, verbose=True):
             gamma=args.gamma,
             subsample=args.subsample,
             scale_pos_weight=args.scaleweight,
-            objective='binary:'+args.lossfunction
+            objective='binary:'+args.lossfunction,
     )
 
     # train model
     start = time.perf_counter()
     bdt.fit(X_train, Y_train, eval_set=eval_set,
-            sample_weight=weightTrain, verbose=2 if verbose else 3)
+            sample_weight=weightTrain, verbose=2 if args.verbose else 0)
     lgr.log(f'Elapsed Training Time = {round(time.perf_counter() - start)}s')
 
     # save model
@@ -113,7 +117,6 @@ def train_bdt(features, preselection, args, verbose=True):
 
 
 if __name__ == '__main__':
-    print('Imports Done')
     parser = argparse.ArgumentParser()
     parser.add_argument('--modelname', dest='modelname',
                         default='xgbmodel', type=str, help='model name')
@@ -149,6 +152,8 @@ if __name__ == '__main__':
                         type=int, help='number of signal training examples')
     parser.add_argument('--no_plot', dest='plot', action='store_false',
                         help='dont add loss plot to output directory')
+    parser.add_argument('--verbose', dest='verbose', action='store_true',
+                        help='print parameters and training progress to stdout')
     args, unknown = parser.parse_known_args()
 
     # Select Input Variables
