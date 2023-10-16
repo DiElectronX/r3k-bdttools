@@ -16,7 +16,7 @@ def load_dir_args(args):
             if 'Inputs: ' in line:
                 args.features = ast.literal_eval(
                     line.split('Inputs: ', 1)[1].strip())
-            if 'Saving Model ' in line:
+            if ('Saving Model ' in line) and ('.pkl' in line):
                 args.model = line.split('Saving Model ', 1)[1].strip()
 
     print(f'Measuring {args.decay} Decay')
