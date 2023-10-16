@@ -100,13 +100,18 @@ def preprocess_inputs(runFiles,ipart,args,branch_dict):
         mB_branch = copied_branches[branch_dict['candidate']+'_fit_mass']
         mll_branch = copied_branches[branch_dict['candidate']+'_mll_fullfit']
         if args.useBsideBands:
-            presel_mask = presel_mask * ((mB_branch>MLeftSideMin) * (mB_branch<MLeftSideMax) + (mB_branch>MRightSideMin) * (mB_branch<MRightSideMax))
+            sidebands = np.array(branch_dict['candidate_mass_sidebands'])
+            if sidebands.ndim==1:
+                presel_mask = presel_mask * (mB_branch>sidebands[0]) * (mB_branch<sidebands[1])
+            else:
+                assert sidebands.ndim==2
+                presel_mask = presel_mask * np.logical_or.reduce([np.logical_and(mB_branch>=start, mB_branch<=end) for start, end in sidebands])
         else:
-            presel_mask = presel_mask * ((mB_branch>MBmin) * (mB_branch<MBmax))
+            presel_mask = presel_mask * ((mB_branch>branch_dict['candidate_mass_range'][0]) * (mB_branch<branch_dict['candidate_mass_range'][1]))
         if args.useLowQ:
-            presel_mask = presel_mask * ((mll_branch>MllcutMin) * (mll_branch<MllcutMax))
+            presel_mask = presel_mask * ((mll_branch>branch_dict['lowq2_region'][0]) * (mll_branch<branch_dict['lowq2_region'][1]))
         if args.useHighQ:
-            presel_mask = presel_mask * (mll_branch>Highq2Mllcut)
+            presel_mask = presel_mask * ((mll_branch>branch_dict['highq2_region'][0]) * (mll_branch<branch_dict['highq2_region'][1]))
 
         #eta cuts k, e1,e2
         k_eta_branch = copied_branches[branch_dict['candidate']+'_fit_k_eta']
@@ -205,73 +210,78 @@ if __name__ == '__main__':
 
     if 'KEE' in col:
         branch_dict = {
-            'candidate' : col,
-            'cand_branches' : {
-                    col+'_mll_fullfit':'Mll',
-                    col+'_fit_pt':'Bpt',
-                    col+'_fit_mass':'Bmass',
-                    col+'_fit_cos2D':'Bcos',
-                    col+'_svprob':'Bprob',
-                    col+'_fit_massErr':'BmassErr',
-                    col+'_b_iso04':'Biso',
-                    col+'_l_xy_sig':'BsLxy',
-                    col+'_fit_l1_pt':'L1pt',
-                    col+'_fit_l1_eta':'L1eta',
-                    col+'_l1_iso04':'L1iso',
-                    col+'_l1_pfmvaId':'L1id',
-                    col+'_fit_l2_pt':'L2pt',
-                    col+'_fit_l2_eta':'L2eta',
-                    col+'_l2_iso04':'L2iso',
-                    col+'_l2_pfmvaId':'L2id',
-                    col+'_fit_k_pt':'Kpt',
-                    col+'_k_iso04':'Kiso',
-                    col+'_fit_k_eta':'Keta',
-                    col+'_lKDz':'LKdz',
-                    col+'_lKDr':'LKdr',
-                    col+'_l1l2Dr':'L1L2dr',
-                    col+'_k_svip3d':'Kip3d',
-                    col+'_k_svip3d_err':'Kip3dErr',
-                    col+'_l1_iso04_dca':'L1isoDca',
-                    col+'_l2_iso04_dca':'L2isoDca',
-                    col+'_k_iso04_dca':'KisoDca',
-                    col+'_b_iso04_dca':'BisoDca',
-                    # col+'_l1_n_isotrk_dca':'L1Nisotrk',
-                    # col+'_l2_n_isotrk_dca':'L2Nisotrk',
-                    # col+'_k_n_isotrk_dca':'KNisotrk',
-                    col+'_k_dca_sig':'KsDca',
-                    col+'_kl_massKPi':'KLmassD0',
-                    col+'_p_assymetry':'Passymetry',
+            'candidate'                : col,
+            'candidate_mass_range'     : (4.5,6.),
+            'candidate_mass_sidebands' : ((4.8,5.),(5.4,5.6)),
+            'lowq2_region'             : (1.05,2.45),
+            'highq2_region'            : (3.85,6.),
+            'cand_branches'            : {
+                    col+'_mll_fullfit'     : 'Mll',
+                    col+'_fit_pt'          : 'Bpt',
+                    col+'_fit_mass'        : 'Bmass',
+                    col+'_fit_cos2D'       : 'Bcos',
+                    col+'_svprob'          : 'Bprob',
+                    col+'_fit_massErr'     : 'BmassErr',
+                    col+'_b_iso04'         : 'Biso',
+                    col+'_l_xy_sig'        : 'BsLxy',
+                    col+'_fit_l1_pt'       : 'L1pt',
+                    col+'_fit_l1_eta'      : 'L1eta',
+                    col+'_l1_iso04'        : 'L1iso',
+                    col+'_l1_pfmvaId'      : 'L1id',
+                    col+'_fit_l2_pt'       : 'L2pt',
+                    col+'_fit_l2_eta'      : 'L2eta',
+                    col+'_l2_iso04'        : 'L2iso',
+                    col+'_l2_pfmvaId'      : 'L2id',
+                    col+'_fit_k_pt'        : 'Kpt',
+                    col+'_k_iso04'         : 'Kiso',
+                    col+'_fit_k_eta'       : 'Keta',
+                    col+'_lKDz'            : 'LKdz',
+                    col+'_lKDr'            : 'LKdr',
+                    col+'_l1l2Dr'          : 'L1L2dr',
+                    col+'_k_svip3d'        : 'Kip3d',
+                    col+'_k_svip3d_err'    : 'Kip3dErr',
+                    col+'_l1_iso04_dca'    : 'L1isoDca',
+                    col+'_l2_iso04_dca'    : 'L2isoDca',
+                    col+'_k_iso04_dca'     : 'KisoDca',
+                    col+'_b_iso04_dca'     : 'BisoDca',
+                    col+'_k_dca_sig'       : 'KsDca',
+                    col+'_kl_massKPi'      : 'KLmassD0',
+                    col+'_p_assymetry'     : 'Passymetry',
+                    # col+'_l1_n_isotrk_dca' : 'L1Nisotrk',
+                    # col+'_l2_n_isotrk_dca' : 'L2Nisotrk',
+                    # col+'_k_n_isotrk_dca'  : 'KNisotrk',
             },
             'leppairs_branches' : {
-                    col+'_fit_l1_pt':col+'_fit_l2_pt',
-                    col+'_fit_l1_eta':col+'_fit_l2_eta',
-                    col+'_l1_pfmvaId':col+'_l2_pfmvaId',
-                    col+'_l1_iso04':col+'_l2_iso04',
-                    #col+'_l1_trk_mass':col+'_l2_trk_mass'
+                    col+'_fit_l1_pt'   : col+'_fit_l2_pt',
+                    col+'_fit_l1_eta'  : col+'_fit_l2_eta',
+                    col+'_l1_pfmvaId'  : col+'_l2_pfmvaId',
+                    col+'_l1_iso04'    : col+'_l2_iso04',
+                    # col+'_l1_trk_mass' : col+'_l2_trk_mass',
             },
             'scalar_branches' : {
-                    'PV_npvs':'PV_npvs',
-                    'event':'idx'
+                    'PV_npvs' : 'PV_npvs',
+                    'event'   : 'idx',
             },
             'presel' : {
-                    col+'_svprob':0.0001,
-                    col+'_fit_cos2D':0.9,
-                    col+'_fit_pt':0.0,
-                    col+'_l_xy_sig':2.0,
-                    col+'_fit_k_pt':0.5,
-                    col+'_mll_fullfit':0.0,
-                    #col+'_trk_minxy2':0.000001
+                    col+'_svprob'      : 0.0001,
+                    col+'_fit_cos2D'   : 0.9,
+                    col+'_fit_pt'      : 0.0,
+                    col+'_l_xy_sig'    : 2.0,
+                    col+'_fit_k_pt'    : 0.5,
+                    col+'_mll_fullfit' : 0.0,
+                    # col+'_trk_minxy2'  : 0.000001,
             },
             'leppairs_presel' : {
-                    col+'_fit_l1_pt':2.0,
-                    col+'_fit_l2_pt':2.0,
-                    col+'_l1_pfmvaId':-1.5,
-                    col+'_l2_pfmvaId':-3.0
+                    col+'_fit_l1_pt'  : 2.0,
+                    col+'_fit_l2_pt'  : 2.0,
+                    col+'_l1_pfmvaId' : -1.5,
+                    col+'_l2_pfmvaId' : -3.0,
             },
         }
 
     elif 'KMuMu' in col: pass
-    else: raise KeyError('Pick Proper Column Name')
+    else:
+        raise KeyError('pick allowed column name')
 
     if args.nparts>1:
         print(f'Distributing {args.total} Files to {args.nparts} workers...')
