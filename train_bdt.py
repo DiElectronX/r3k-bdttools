@@ -28,10 +28,43 @@ class Logger():
             logging.info(string)
 
 
+def save_model(model, args, formats, logger):
+    name_blocks = [
+        args.modelname,
+        'Nsig'+str(args.stop_sig)+'_Nbkg' +
+                    str(args.stop_bkg) if (
+                        args.stop_sig or args.stop_bkg) else '',
+        args.label,
+    ]
+    output_name = '_'.join(filter(None, name_blocks))
+
+    if '.pkl' in formats:
+        name = os.path.join(args.outdir, output_name+'.pkl')
+        dump(model, name)
+        if logger:
+            logger.log(f'Saving Model {name}')
+    if '.text' in formats:
+        name = os.path.join(args.outdir, output_name+'.text')
+        booster = model.get_booster()
+        booster.dump_model(name, dump_format='text')
+        if logger:
+            logger.log(f'Saving Model {name}')
+    if '.json' in formats:
+        name = os.path.join(args.outdir, output_name+'.json')
+        model.save_model(name)
+        if logger:
+            logger.log(f'Saving Model {name}')
+    if '.txt' in formats:
+        name = os.path.join(args.outdir, output_name+'.txt')
+        model.save_model(name)
+        if logger:
+            logger.log(f'Saving Model {name}')
+
+
 def train_bdt(features, preselection, args):
-    outdir = os.path.join(args.outdir if args.outdir else '.', args.modelname)
-    os.makedirs(outdir, exist_ok=True)
-    lgr = Logger(os.path.join(outdir, 'log.txt'), verbose=args.verbose)
+    args.outdir = os.path.join(args.outdir if args.outdir else '.', args.modelname)
+    os.makedirs(args.outdir, exist_ok=True)
+    lgr = Logger(os.path.join(args.outdir, 'log.txt'), verbose=args.verbose)
 
     # read input data
     lgr.log(f'Signal File: {args.sigfile}')
@@ -84,16 +117,7 @@ def train_bdt(features, preselection, args):
     lgr.log(f'Elapsed Training Time = {round(time.perf_counter() - start)}s')
 
     # save model
-    name_blocks = [
-            args.modelname,
-            'Nsig'+str(args.stop_sig)+'_Nbkg' +
-                       str(args.stop_bkg) if (
-                           args.stop_sig or args.stop_bkg) else '',
-            args.label,
-    ]
-    output_name = '_'.join(filter(None, name_blocks))+'.pkl'
-    dump(bdt, os.path.join(outdir, output_name))
-    lgr.log(f'Saving Model {os.path.join(outdir,output_name)}')
+    save_model(bdt, args, ['.pkl', '.txt', '.text', '.json'], lgr)
 
     # save metrics
     y_pred = bdt.predict(X_test)
@@ -113,7 +137,7 @@ def train_bdt(features, preselection, args):
         plt.xlabel('Epoch')
         plt.ylabel('Log Loss')
         plt.title('XGBoost Log Loss')
-        plt.savefig(os.path.join(outdir, 'logloss.png'))
+        plt.savefig(os.path.join(args.outdir, 'logloss.png'))
 
 
 if __name__ == '__main__':
