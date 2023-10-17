@@ -17,17 +17,6 @@ def preprocess_files(input_files, nparts, total):
     return outfiles
 
 def preprocess_inputs(runFiles,ipart,args,branch_dict):
-    # Branch Parameters
-    MllcutMin = 1.05
-    MllcutMax = 2.45
-    Highq2Mllcut = 3.85
-    MLeftSideMin = 4.8
-    MLeftSideMax = 5.
-    MRightSideMin = 5.4
-    MRightSideMax = 5.6
-    MBmin = 4.5
-    MBmax = 6.
-
     if args.mode=='train':
         args.writeMeasurement = False
         args.useLowQ = True
