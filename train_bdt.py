@@ -28,15 +28,17 @@ class Logger():
             logging.info(string)
 
 
-def save_model(model, args, formats, logger):
+def make_file_name(args):
     name_blocks = [
         args.modelname,
         'Nsig'+str(args.stop_sig)+'_Nbkg' +
-                    str(args.stop_bkg) if (
-                        args.stop_sig or args.stop_bkg) else '',
+        str(args.stop_bkg) if (args.stop_sig or args.stop_bkg) else '',
         args.label,
     ]
-    output_name = '_'.join(filter(None, name_blocks))
+    return '_'.join(filter(None, name_blocks))
+
+def save_model(model, args, formats, logger):
+    output_name = make_file_name(args)
 
     if '.pkl' in formats:
         name = os.path.join(args.outdir, output_name+'.pkl')
@@ -64,7 +66,7 @@ def save_model(model, args, formats, logger):
 def train_bdt(features, preselection, args):
     args.outdir = os.path.join(args.outdir if args.outdir else '.', args.modelname)
     os.makedirs(args.outdir, exist_ok=True)
-    lgr = Logger(os.path.join(args.outdir, 'log.txt'), verbose=args.verbose)
+    lgr = Logger(os.path.join(args.outdir, f'log_{make_file_name(args)}.txt'), verbose=args.verbose)
 
     # read input data
     lgr.log(f'Signal File: {args.sigfile}')
@@ -137,7 +139,7 @@ def train_bdt(features, preselection, args):
         plt.xlabel('Epoch')
         plt.ylabel('Log Loss')
         plt.title('XGBoost Log Loss')
-        plt.savefig(os.path.join(args.outdir, 'logloss.png'))
+        plt.savefig(os.path.join(args.outdir, f'logloss_{make_file_name(args)}.png'))
 
 
 if __name__ == '__main__':
@@ -181,8 +183,7 @@ if __name__ == '__main__':
     args, unknown = parser.parse_known_args()
 
     # Select Input Variables
-    features = ['Bprob', 'BsLxy', 'L2iso/L2pt', 'Kpt/Bmass', 'Bcos', 'Kiso/Kpt', 'LKdz', 'LKdr',
-                'Bpt/Bmass', 'Passymetry', 'Kip3d/Kip3dErr', 'L1id', 'L2id', 'L1pt/Bmass', 'L2pt/Bmass', 'L1L2dr']
+    features = ['Bprob', 'BsLxy', 'L2iso/L2pt', 'Kpt/Bmass', 'Bcos', 'Kiso/Kpt', 'LKdz', 'LKdr', 'Bpt/Bmass', 'Passymetry', 'Kip3d/Kip3dErr', 'L1id', 'L2id']
 
     # Preselection Cuts
     preselection = ''
