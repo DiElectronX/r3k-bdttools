@@ -5,11 +5,10 @@ import numpy as np
 import uproot as ur
 from pathlib import Path
 from joblib import load
-# from xgboost import XGBClassifier
 
 
 def load_dir_args(args):
-    with open(os.path.join(args.fromdir, 'log.txt')) as f:
+    with open(os.path.join(args.fromdir, f'log_{args.label}.txt')) as f:
         for line in f:
             if 'Decay: ' in line:
                 args.decay = line.split('Decay: ', 1)[1].strip()
