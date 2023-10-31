@@ -8,7 +8,7 @@ from joblib import load
 
 
 def load_dir_args(args):
-    with open(os.path.join(args.fromdir, f'log_{args.label}.txt')) as f:
+    with open(os.path.join(args.fromdir, f'{"log_"+args.label if args.label else "log"}.txt')) as f:
         for line in f:
             if 'Decay: ' in line:
                 args.decay = line.split('Decay: ', 1)[1].strip()
@@ -34,7 +34,10 @@ def edit_filename(path, prefix='', suffix=''):
     return os.path.join(str(path.parent), (prefix+'_' if prefix else '') + str(path.stem) + ('_'+suffix if suffix else '') + str(path.suffix))
 
 
-def evaluate_bdt(bdt, args, bdt_cols, out_cols, selection):
+def evaluate_bdt(bdt, args, bdt_cols, output_dict, selection):
+    isMC = ('MC' in args.measurefile) or args.mc
+    out_cols = output_dict['common'] + (output_dict['mc'] if isMC else output_dict['data'])
+
     modelname = edit_filename(
         args.filepath, prefix='measurement', suffix=args.label)
     check_rm_files([modelname, modelname.replace('.pkl', '.root')])
@@ -71,6 +74,8 @@ if __name__ == '__main__':
                         type=str, choices=['kmumu', 'kee'], help='decay type')
     parser.add_argument('--fromdir', dest='fromdir', default='',
                         type=str, help='load params from designated model directory')
+    parser.add_argument('--mc', dest='mc', action='store_true',
+                        help='flag for specifying MC sample (will already look for "MC" in filename)')
     args, unknown = parser.parse_known_args()
 
     # select input variables
@@ -88,32 +93,36 @@ if __name__ == '__main__':
     preselection = ''
 
     # output branch files
-    out_cols = [
-            'Bmass',
-            'Mll',
-            'Bprob',
-            'BsLxy',
-            # 'Npv',
-            'L1pt',
-            'L2pt',
-            'Kpt',
-            'Bcos',
-            'LKdz',
-            'LKdr',
-            'L2id',
-            'Kiso',
-            'L1id',
-            'L1iso',
-            'KLmassD0',
-            'Passymetry',
-            'Kip3d',
-            'Kip3dErr',
-            'L2iso',
-            'Keta',
-            'L2eta',
-            'L1eta',
-    ]
-
+    output_dict = {
+    
+        'common' : [
+                'Bmass',
+                'Mll',
+                'Bprob',
+                'BsLxy',
+                'Npv',
+                'L1pt',
+                'L2pt',
+                'Kpt',
+                'Bcos',
+                'LKdz',
+                'LKdr',
+                'L2id',
+                'Kiso',
+                'L1id',
+                'L1iso',
+                'KLmassD0',
+                'Passymetry',
+                'Kip3d',
+                'Kip3dErr',
+                'L2iso',
+                'Keta',
+                'L2eta',
+                'L1eta',
+        ],
+        'data' : [],
+        'mc' : [ 'trig_wgt' ],
+    }
     # load from directory
     if args.fromdir:
         load_dir_args(args)
@@ -126,4 +135,4 @@ if __name__ == '__main__':
     bdt = load(args.filepath)
 
     # evaluate model
-    evaluate_bdt(bdt, args, features, out_cols, preselection)
+    evaluate_bdt(bdt, args, features, output_dict, preselection)
