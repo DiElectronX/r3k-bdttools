@@ -376,13 +376,16 @@ if __name__ == '__main__':
                     'sortedlep1_iso04_dca':'L1isoDca','sortedlep2_iso04_dca':'L2isoDca',
                     # 'sortedlep1_trk_mass':'L1Trkmass','sortedlep2_trk_mass':'L2Trkmass',
                     cols['B']+'_p_assymetry':'Passymetry',
+                    'nBToKEE':'nB',
                     'PV_npvs':'Npv',
                     'event':'idx',
+                    'trig_wgt':'trig_wgt',
             },
             'scalar_branches' : {
-                    'nBToKEE':'nBToKEE',
+                    'nBToKEE':'nB',
                     'PV_npvs':'Npv',
                     'event':'idx',
+                    'trig_wgt':'trig_wgt',
             },
             'l1_branches' : {
                     cols['B']+'_fit_l1_pt':'sortedlep{order}_pt',
