@@ -248,7 +248,7 @@ if __name__ == '__main__':
                     # col+'_l1_trk_mass' : col+'_l2_trk_mass',
             },
             'scalar_branches' : {
-                    'PV_npvs' : 'PV_npvs',
+                    'PV_npvs' : 'Npv',
                     'event'   : 'idx',
             },
             'presel' : {
