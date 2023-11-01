@@ -3,18 +3,8 @@ import numpy as np
 import uproot as ur
 import awkward as ak
 import multiprocessing as mp
-from glob import glob
+from utils import preprocess_files
 
-def preprocess_files(input_files, nparts, total):
-    filelist = [input_files] if input_files.endswith('.root') else glob(input_files+'/**/*.root',recursive=True)[:total]
-    if nparts==1:
-        outfiles = filelist
-    else:
-        outfiles = np.array_split(np.array(filelist), nparts if nparts!=-1 else mp.cpu_count())
-
-    if not outfiles: 
-        raise ValueError('Invalid input path/file')
-    return outfiles
 
 def preprocess_inputs(runFiles,ipart,args,branch_dict):
     if args.mode=='train':
