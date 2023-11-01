@@ -4,6 +4,7 @@ import ast
 import numpy as np
 from joblib import dump
 from glob import glob
+from pathlib import Path
 
 class Logger():
     def __init__(self, filepath, verbose=True):        
