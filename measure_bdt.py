@@ -1,6 +1,5 @@
 import os
 import argparse
-import ast
 import numpy as np
 import uproot as ur
 from pathlib import Path
