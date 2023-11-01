@@ -1,10 +1,12 @@
 import os
 import argparse
+import warnings
 import numpy as np
 import uproot as ur
 from joblib import load
 from utils import load_dir_args, check_rm_files, edit_filename
 
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 def evaluate_bdt(bdt, args, bdt_cols, output_dict, selection):
     isMC = ('MC' in args.measurefile) or args.mc
@@ -15,20 +17,20 @@ def evaluate_bdt(bdt, args, bdt_cols, output_dict, selection):
     check_rm_files([modelname, modelname.replace('.pkl', '.root')])
 
     with ur.open(args.measurefile) as datafile:
-        data_dict = datafile['mytree'].arrays(
-            bdt_cols, cut=selection if selection else None, library='np')
+        data = datafile['mytree'].arrays(
+            bdt_cols, cut=selection if selection else None, library='pd')
         out_branches = datafile['mytree'].arrays(
-            out_cols, cut=selection if selection else None, library='np')
-        data = np.transpose(np.stack(list(data_dict.values())))
+            out_cols, cut=selection if selection else None, library='pd')
+        # data = np.transpose(np.stack(list(data_dict.values())))
 
     if selection:
         print('Additional Preselection Cuts:')
-        for k, val in selection.items():
-            print(f'  -{k}: {val}')
+        print(f'  - {args.preselection}')
+        # TODO reformat preselection cuts
+        # for k, val in args.preselection.items():
+        #     lgr.log(f'  -{k}: {val}')
 
-    decisions = np.array([x[1]
-                         for x in bdt.predict_proba(data)], dtype=np.float64)
-    out_branches['xgb'] = decisions
+    out_branches['xgb'] = np.array(bdt.predict_proba(data)[:,1], dtype=np.float64)
 
     with ur.recreate((modelname.split('.pkl')[0] if '.pkl' in modelname else modelname)+'.root') as outfile:
         outfile['mytreefit'] = out_branches
@@ -72,7 +74,7 @@ if __name__ == '__main__':
                 'Mll',
                 'Bprob',
                 'BsLxy',
-                'Npv',
+                # 'Npv',
                 'L1pt',
                 'L2pt',
                 'Kpt',

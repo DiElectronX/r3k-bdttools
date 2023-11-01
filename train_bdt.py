@@ -4,14 +4,18 @@ import argparse
 import numpy as np
 import uproot as ur
 import pandas as pd
+import warnings
 from xgboost import XGBClassifier
 from hep_ml.uboost import uBoostBDT
+from hep_ml.losses import KnnAdaLossFunction
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from sklearn.utils.class_weight import compute_sample_weight
 from utils import Logger, make_file_name, save_model
 
+warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore', category=UserWarning)
 
 def train_bdt(args):
     args.outdir = os.path.join(args.outdir if args.outdir else '.', args.modelname)
@@ -51,18 +55,29 @@ def train_bdt(args):
     weightTest = compute_sample_weight(class_weight='balanced', y=Y_test)
 
     # initialize model
-    clf = DecisionTreeClassifier(max_depth=args.depth)
+    # clf = DecisionTreeClassifier(max_depth=args.depth)
+    clf = XGBClassifier(
+            max_depth=args.depth,
+            n_estimators=args.ntree,
+            learning_rate=args.lrate,
+            min_child_weight=args.nodeweight,
+            gamma=args.gamma,
+            subsample=args.subsample,
+            scale_pos_weight=args.scaleweight,
+            objective='binary:'+args.lossfunction,
+    )
+
     bdt = uBoostBDT(
             uniform_features=args.uniform_features,
             train_features=args.features,
-            n_neighbors=5,
-            uniform_label=0,
+            n_neighbors=args.neighbors,
+            uniform_label=1,
             base_estimator=clf,
-            n_estimators=args.ntree,
-            learning_rate=args.lrate,
+            # n_estimators=args.ntree,
+            # learning_rate=args.lrate,
             # min_child_weight=args.nodeweight,
             # gamma=args.gamma,
-            subsample=args.subsample,
+            # subsample=args.subsample,
             # scale_pos_weight=args.scaleweight,
             # objective= 'binary:'+args.lossfunction
     )
@@ -72,8 +87,9 @@ def train_bdt(args):
     bdt.fit(
         X_train, 
         Y_train, 
+        # neighbours_matrix=lossMtx,
         # eval_set=eval_set,
-        sample_weight=weightTrain, 
+        # sample_weight=weightTrain, 
         # verbose=2 if args.verbose else 0,
     )
     lgr.log(f'Elapsed Training Time = {round(time.perf_counter() - start)}s')
@@ -86,10 +102,10 @@ def train_bdt(args):
     predictions = [round(value) for value in y_pred]
     acc = accuracy_score(Y_test, predictions)
     lgr.log(f'Accuracy: {round(acc*100,1)}%')
-    # results = bdt.evals_result()
-
+    
     # if args.plot:
     #     import matplotlib.pyplot as plt
+    #     results = bdt.base_estimator.evals_result()
     #     fig, ax = plt.subplots()
     #     ax.plot(np.arange(len(results['validation_0']['logloss'])),
     #             results['validation_0']['logloss'], label='Train')
@@ -116,6 +132,8 @@ if __name__ == '__main__':
                         type=str, choices=['kmumu', 'kee'], help='decay type')
     parser.add_argument('--label', dest='label', default='',
                         type=str, help='output file label')
+    parser.add_argument('--neighbors', dest='neighbors', default=10,
+                        type=int, help='number of k nearest neighbors')
     parser.add_argument('--ntree', dest='ntree', default=750,
                         type=int, help='number of trees')
     parser.add_argument('--depth', dest='depth', default=6,
