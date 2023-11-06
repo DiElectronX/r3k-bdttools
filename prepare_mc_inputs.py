@@ -10,7 +10,7 @@ def preprocess_inputs(runFiles,args,branch_dict):
     # Branch Parameters
     MBmin = 4.5
     MBmax = 6.0
-    Mll_lowQ = 3.0 # applied only if mode is training. measurment mode ignores it
+    Mll_lowQ = (1.05, 2.45) # applied only if mode is training. measurment mode ignores it
     Mll_highQ = 4.00 # applied only in highq2train
     addMassConstraintVariables = True
 
@@ -235,7 +235,7 @@ def preprocess_inputs(runFiles,args,branch_dict):
         MB=getattr(ev,'{0}_{1}'.format(cols['B'],'fit_mass'))
         if MB<MBmin or MB>MBmax: continue
         Mll=getattr(ev,'{0}_{1}'.format(cols['B'],'mll_fullfit'))
-        if args.useLowQ and (not args.AddHighQ) and Mll > Mll_lowQ: 
+        if args.useLowQ and (not args.AddHighQ) and (Mll > Mll_lowQ[0] or Mll < Mll_lowQ[1]): 
             continue
         if args.useLowQ and args.AddHighQ and (Mll > Mll_lowQ and Mll<Mll_highQ): 
             continue
