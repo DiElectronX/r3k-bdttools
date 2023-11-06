@@ -165,6 +165,6 @@ if __name__ == '__main__':
     # select features to maintain uniformity
     args.uniform_features = ['Bmass']
     # preselection Cuts
-    args.preselection = 'KLmassD0 > 2.'
+    args.preselection = 'KLmassD0 > 2. && (Mll>1.05 || Mll<2.45)'
 
     train_bdt(args)

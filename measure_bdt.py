@@ -8,32 +8,24 @@ from utils import load_dir_args, check_rm_files, edit_filename
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-def evaluate_bdt(bdt, args, bdt_cols, output_dict, selection):
+def evaluate_bdt(args):
     isMC = ('MC' in args.measurefile) or args.mc
-    out_cols = output_dict['common'] + (output_dict['mc'] if isMC else output_dict['data'])
-
-    modelname = edit_filename(
-        args.filepath, prefix='measurement', suffix=args.label)
+    out_cols = args.output_dict['common'] + (args.output_dict['mc'] if isMC else args.output_dict['data'])
+    presel = args.preselection if args.preselection else None
+    modelname = edit_filename(args.filepath, prefix='measurement', suffix=args.label)
     check_rm_files([modelname, modelname.replace('.pkl', '.root')])
 
     with ur.open(args.measurefile) as datafile:
-        data = datafile['mytree'].arrays(
-            bdt_cols, cut=selection if selection else None, library='pd')
-        out_branches = datafile['mytree'].arrays(
-            out_cols, cut=selection if selection else None, library='pd')
-        # data = np.transpose(np.stack(list(data_dict.values())))
+        data = datafile['mytree'].arrays(args.features, cut=presel, library='pd')
+        output_branches = datafile['mytree'].arrays(out_cols, cut=presel, library='pd')
 
     if selection:
-        print('Additional Preselection Cuts:')
-        print(f'  - {args.preselection}')
-        # TODO reformat preselection cuts
-        # for k, val in args.preselection.items():
-        #     lgr.log(f'  -{k}: {val}')
+        print(f'Additional Preselection Cuts:\n{args.preselection}')
 
-    out_branches['xgb'] = np.array(bdt.predict_proba(data)[:,1], dtype=np.float64)
+    output_branches['xgb'] = np.array(args.bdt.predict_proba(data)[:,1], dtype=np.float64)
 
     with ur.recreate((modelname.split('.pkl')[0] if '.pkl' in modelname else modelname)+'.root') as outfile:
-        outfile['mytreefit'] = out_branches
+        outfile['mytreefit'] = output_branches
 
 
 if __name__ == '__main__':
@@ -52,23 +44,14 @@ if __name__ == '__main__':
                         help='flag for specifying MC sample (will already look for "MC" in filename)')
     args, unknown = parser.parse_known_args()
 
-    # select input variables
-    # 'Slimmed' Inputs
-    # features = ['Bprob','BsLxy','L2iso/L2pt','Kpt/Bmass','Bcos','Kiso/Kpt','LKdz','LKdr','Bpt/Bmass','Passymetry','Kip3d/Kip3dErr']
-    # Otto / 'Run 2' Inputs
-    # Missing: BBDphi, BTrkdxy2
-    features = ['Bprob', 'BsLxy', 'L2iso/L2pt', 'Kpt/Bmass', 'Bcos', 'Kiso/Kpt', 'LKdz', 'LKdr', 'Bpt/Bmass', 'Passymetry', 'Kip3d/Kip3dErr', 'L1id', 'L2id']
-
-    # Jay Inputs
-    # Missing: ProbeTracks_DCASig[K], ProbeTracks_dzTrg[K], BToKEE_k_svip2d, BToKEE_l1_dxy_sig, BToKEE_l1_dzTrg, BToKEE_l2_dxy_sig, BToKEE_l2_dzTrg, BToKEE_llkDR
-    # features = ['Biso/Bpt','L1L2dr','Bcos','Kpt/Bmass','L1pt/Bmass','L2pt/Bmass','Bpt/Bmass','Kiso/Kpt','Kip3d','L1iso/L1pt','L1id','L2iso/L2pt','L2id','BsLxy','Passymetry','Bprob']
+    # select input features
+    args.features = ['Bprob', 'BsLxy', 'L2iso/L2pt', 'Kpt/Bmass', 'Bcos', 'Kiso/Kpt', 'LKdz', 'LKdr', 'Bpt/Bmass', 'Passymetry', 'Kip3d/Kip3dErr', 'L1id', 'L2id']
 
     # preseelction cuts (should already be applied)
-    preselection = ''
+    args.preselection = ''
 
     # output branch files
-    output_dict = {
-    
+    args.output_dict = {
         'common' : [
                 'Bmass',
                 'Mll',
@@ -95,18 +78,17 @@ if __name__ == '__main__':
                 'L1eta',
         ],
         'data' : [],
-        'mc' : [ 'trig_wgt' ],
+        'mc' : [],
     }
     # load from directory
     if args.fromdir:
         load_dir_args(args)
-        features = args.features
 
     # load model
     args.filepath = args.model if '.pkl' in args.model else args.model+'.pkl'
     assert os.path.exists(args.filepath)
     assert os.path.exists(args.measurefile)
-    bdt = load(args.filepath)
+    args.bdt = load(args.filepath)
 
     # evaluate model
-    evaluate_bdt(bdt, args, features, output_dict, preselection)
+    evaluate_bdt(args)
