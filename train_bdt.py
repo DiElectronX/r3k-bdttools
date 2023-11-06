@@ -63,7 +63,7 @@ def save_model(model, args, formats, logger):
             logger.log(f'Saving Model {name}')
 
 
-def train_bdt(features, preselection, args):
+def train_bdt(args):
     args.outdir = os.path.join(args.outdir if args.outdir else '.', args.modelname)
     os.makedirs(args.outdir, exist_ok=True)
     lgr = Logger(os.path.join(args.outdir, f'log_{make_file_name(args)}.txt'), verbose=args.verbose)
@@ -73,20 +73,21 @@ def train_bdt(features, preselection, args):
     lgr.log(f'Background File: {args.bkgfile}')
     with ur.open(args.sigfile) as sigfile, ur.open(args.bkgfile) as bkgfile:
         sig_dict = sigfile['mytree'].arrays(
-            features, cut=preselection if preselection else None, entry_stop=args.stop_sig, library='np')
+            args.features, cut=args.preselection if args.preselection else None, entry_stop=args.stop_sig, library='np')
         bkg_dict = bkgfile['mytree'].arrays(
-            features, cut=preselection if preselection else None, entry_stop=args.stop_bkg, library='np')
+            args.features, cut=args.preselection if args.preselection else None, entry_stop=args.stop_bkg, library='np')
         signal = np.stack(list(sig_dict.values()))
         backgr = np.stack(list(bkg_dict.values()))
 
     # load model info
     lgr.log(f'Model Name: {args.modelname}')
     lgr.log(f'Decay: {args.decay}')
-    lgr.log(f'Inputs: {features}')
-    if preselection:
+    lgr.log(f'Inputs: {args.features}')
+    if args.preselection:
         lgr.log('Preselection Cuts:')
-        for k, val in preselection.items():
-            lgr.log(f'  -{k}: {val}')
+        lgr.log(f'  - {args.preseelction}')
+        # for k, val in args.preselection.items():
+        #     lgr.log(f'  -{k}: {val}')
     lgr.log('Model Hyperparameters:')
     for arg in list(vars(args))[5:]:
         lgr.log(f'  -{arg}: {getattr(args, arg)}')
@@ -183,9 +184,9 @@ if __name__ == '__main__':
     args, unknown = parser.parse_known_args()
 
     # Select Input Variables
-    features = ['Bprob', 'BsLxy', 'L2iso/L2pt', 'Kpt/Bmass', 'Bcos', 'Kiso/Kpt', 'LKdz', 'LKdr', 'Bpt/Bmass', 'Passymetry', 'Kip3d/Kip3dErr', 'L1id', 'L2id']
+    args.features = ['Bprob', 'BsLxy', 'L2iso/L2pt', 'Kpt/Bmass', 'Bcos', 'Kiso/Kpt', 'LKdz', 'LKdr', 'Bpt/Bmass', 'Passymetry', 'Kip3d/Kip3dErr', 'L1id', 'L2id']
 
     # Preselection Cuts
-    preselection = ''
+    args.preselection = 'KLmassD0 > 2. & (Mll>1.05 | Mll<2.45)'
 
-    train_bdt(features, preselection, args)
+    train_bdt(args)
