@@ -22,11 +22,15 @@ def preprocess_inputs(runFiles,args,branch_dict):
         args.writeMeasurment = True
 
     name = 'trainSgn_bdt'
-    if args.writeMeasurment: name = 'MCmeasurment_bdt'
+    if args.writeMeasurment:
+        name = 'MCmeasurment_bdt'
     name += '_KMuMu' if args.lepton=='Mu' else ('_KEE_PFeLowPt' if args.lepton=='LowPt' else ('_KEE_PFe' if args.lepton=='PFe' else ''))
-    if args.useLowQ: name+='_lowQ'
-    if args.AddHighQ: name+='_highQ'
-    if args.nstart!=0 or args.nend!=-1: name+='_Evts_'+str(round(args.nstart))+'-'+str(round(args.nend))
+    if args.useLowQ:
+        name+='_lowQ'
+    if args.AddHighQ:
+        name+='_highQ'
+    if args.nstart!=0 or args.nend!=-1:
+        name+='_Evts_'+str(round(args.nstart))+'-'+str(round(args.nend))
     
     if args.specificTrigger:
         print('Requiring',args.specificTrigger,' trigger')
@@ -125,7 +129,7 @@ def preprocess_inputs(runFiles,args,branch_dict):
             iev += 1
             continue
         if iev==args.nend: break
-        iev+=1 
+        iev+=1
         if args.specificTrigger is not None and ord(getattr(ev,args.specificTrigger))==0: continue
 
         if args.mode=='train' and args.split=='event%2==0':
@@ -136,16 +140,16 @@ def preprocess_inputs(runFiles,args,branch_dict):
         if len (branch_dict['presel_trg'].keys())>0:
             ntrgmu=0
             for lep in ['1','2']:
-                    pt=getattr(ev,'recoMu'+lep+'_pt')
-                    eta=getattr(ev,'recoMu'+lep+'_eta')
-                    dxyErr=getattr(ev,'recoMu'+lep+'_dxyErr')
-                    dxy=getattr(ev,'recoMu'+lep+'_dxy')
-                    sdxy=0
-                    if dxyErr>0: 
-                        sdxy=abs(dxy)/abs(dxyErr)
-                    trg=getattr(ev,'recoMu'+lep+'_isTrg')
-                    if pt>branch_dict['presel_trg']['pt'] and abs(eta)<branch_dict['presel_trg']['eta'] and abs(sdxy)>branch_dict['presel_trg']['sdxy'] and trg==1:
-                        ntrgmu+=1
+                pt=getattr(ev,'recoMu'+lep+'_pt')
+                eta=getattr(ev,'recoMu'+lep+'_eta')
+                dxyErr=getattr(ev,'recoMu'+lep+'_dxyErr')
+                dxy=getattr(ev,'recoMu'+lep+'_dxy')
+                sdxy=0
+                if dxyErr>0: 
+                    sdxy=abs(dxy)/abs(dxyErr)
+                trg=getattr(ev,'recoMu'+lep+'_isTrg')
+                if pt>branch_dict['presel_trg']['pt'] and abs(eta)<branch_dict['presel_trg']['eta'] and abs(sdxy)>branch_dict['presel_trg']['sdxy'] and trg==1:
+                    ntrgmu+=1
             if ntrgmu==0: continue   
         tot+=1
         # reconstruction DR
@@ -330,101 +334,102 @@ if __name__ == '__main__':
     args.sortby = 'leppt' #two options eltype (1 ->PF 2->low) or leppt (1 -> leading, 2->subleading) use first for kmumu kee (with 2pf ) and the second for kee (low + pf)
     args.addMlkVariables = False #for now only for muons... Also takes gen charge for the opposite sign pair
 
-
     #select reco lepton flavour
     cols = {
-        'B':'recoB',
-        'L1':f'reco{"Mu" if "Mu" in args.lepton else "E"}1',
-        'L2':f'reco{"Mu" if "Mu" in args.lepton else "E"}2',
-        'K':'recoK',
+        'B'  : 'recoB',
+        'L1' : f'reco{"Mu" if "Mu" in args.lepton else "E"}1',
+        'L2' : f'reco{"Mu" if "Mu" in args.lepton else "E"}2',
+        'K'  : 'recoK',
     }
-    if True:
-        branch_dict = {
-            'candidate' : cols['B'],
-            'output_branches' : {
-                    cols['B']+'_mll_fullfit':'Mll',
-                    cols['B']+'_fit_pt':'Bpt',
-                    cols['B']+'_fit_mass':'Bmass',
-                    cols['B']+'_fit_cos2D':'Bcos',
-                    cols['B']+'_svprob':'Bprob',
-                    cols['B']+'_fit_massErr':'BmassErr',
-                    cols['B']+'_b_iso04':'Biso',
-                    cols['B']+'_l_xy_sig':'BsLxy',
-                    cols['B']+'_lKDz':'LKdz',
-                    cols['B']+'_lKDr':'LKdr',
-                    cols['B']+'_l1l2Dr':'L1L2dr',
-                    cols['B']+'_fit_k_pt':'Kpt',
-                    cols['B']+'_k_iso04':'Kiso',
-                    cols['B']+'_fit_k_eta':'Keta',
-                    cols['B']+'_k_svip3d':'Kip3d',
-                    cols['B']+'_k_svip3d_err':'Kip3dErr',
-                    cols['B']+'_k_iso04_dca':'KisoDca',
-                    cols['B']+'_b_iso04_dca':'BisoDca',
-                    cols['B']+'_l1_n_isotrk_dca':'L1Nisotrk',
-                    cols['B']+'_l2_n_isotrk_dca':'L2Nisotrk',
-                    cols['B']+'_k_n_isotrk_dca':'KNisotrk',
-                    cols['K']+'_DCASig':'KsDca',
-                    cols['B']+'_k_opp_l_mass':'KLmassD0',
-                    # cols['B']+'_trk_minxy1':'BTrkdxy1'
-                    # cols['B']+'_trk_minxy2':'BTrkdxy2',
-                    # cols['B']+'_trk_minxy3':'BTrkdxy3',
-                    # cols['B']+'_trk_mean':'BTrkMean',
-                    'sortedlep1_pt':'L1pt','sortedlep2_pt':'L2pt',
-                    'sortedlep1_eta':'L1eta','sortedlep2_eta':'L2eta',
-                    'sortedlep1_id':'L1id','sortedlep2_id':'L2id',
-                    'sortedlep1_iso':'L1iso','sortedlep2_iso':'L2iso',
-                    'sortedlep1_iso04_dca':'L1isoDca','sortedlep2_iso04_dca':'L2isoDca',
-                    # 'sortedlep1_trk_mass':'L1Trkmass','sortedlep2_trk_mass':'L2Trkmass',
-                    cols['B']+'_p_assymetry':'Passymetry',
-                    'nBToKEE':'nB',
-                    'PV_npvs':'Npv',
-                    'event':'idx',
-                    'trig_wgt':'trig_wgt',
-            },
-            'scalar_branches' : {
-                    'nBToKEE':'nB',
-                    'PV_npvs':'Npv',
-                    'event':'idx',
-                    'trig_wgt':'trig_wgt',
-            },
-            'l1_branches' : {
-                    cols['B']+'_fit_l1_pt':'sortedlep{order}_pt',
-                    cols['B']+'_fit_l1_eta':'sortedlep{order}_eta',
-                    cols['B']+'_l1_iso04':'sortedlep{order}_iso',
-                    cols['L1']+'_PFEleMvaID_RetrainedRawValue':'sortedlep{order}_id',
-                    # cols['B']+'_l1_trk_mass':'sortedlep{order}_trk_mass',
-                    cols['B']+'_l1_iso04_dca':'sortedlep{order}_iso04_dca',
-            },
-            'l2_branches' : {
-                    cols['B']+'_fit_l2_pt':'sortedlep{order}_pt',
-                    cols['B']+'_fit_l2_eta':'sortedlep{order}_eta',
-                    cols['B']+'_l2_iso04':'sortedlep{order}_iso',
-                    cols['L2']+'_PFEleMvaID_RetrainedRawValue':'sortedlep{order}_id',
-                    # cols['B']+'_l2_trk_mass':'sortedlep{order}_trk_mass',
-                    cols['B']+'_l2_iso04_dca':'sortedlep{order}_iso04_dca',
-            },
-            'presel' : {
-                    # cols['B']+'_svprob':0.0001,
-                    # cols['B']+'_fit_cos2D':0.9,
-                    # cols['B']+'_fit_pt':0.0,
-                    # cols['B']+'_l_xy_sig':3.0,
-                    # cols['K']+'_pt':0.5,
-                    # cols['B']+'_mll_fullfit':1.05,
-                    # cols['B']+'_trk_minxy2':0.000001,
-            },
-            'presel_lep' :  {
-                    # 'sortedlep1_pt':2.0,
-                    # 'sortedlep2_pt':2.0,
-                    # 'sortedlep1_id':-1.5,
-                    # 'sortedlep2_id':-3.0
-            },
-            'presel_dr' : {},
-            # 'presel_dr' : {cols['L1']+'_DR':0.03,cols['L2']+'_DR':0.03,cols['K']+'_DR':0.03},
-            'presel_trg' : {},
-        }
 
-    elif 'Mu' in cols['L1']: pass
-    else: raise KeyError('Pick Proper Column Name')
+    branch_dict = {
+        'candidate' : cols['B'],
+        'output_branches' : {
+                cols['B']+'_mll_fullfit'     : 'Mll',
+                cols['B']+'_fit_pt'          : 'Bpt',
+                cols['B']+'_fit_mass'        : 'Bmass',
+                cols['B']+'_fit_cos2D'       : 'Bcos',
+                cols['B']+'_svprob'          : 'Bprob',
+                cols['B']+'_fit_massErr'     : 'BmassErr',
+                cols['B']+'_b_iso04'         : 'Biso',
+                cols['B']+'_l_xy_sig'        : 'BsLxy',
+                cols['B']+'_lKDz'            : 'LKdz',
+                cols['B']+'_lKDr'            : 'LKdr',
+                cols['B']+'_l1l2Dr'          : 'L1L2dr',
+                cols['B']+'_fit_k_pt'        : 'Kpt',
+                cols['B']+'_k_iso04'         : 'Kiso',
+                cols['B']+'_fit_k_eta'       : 'Keta',
+                cols['B']+'_k_svip3d'        : 'Kip3d',
+                cols['B']+'_k_svip3d_err'    : 'Kip3dErr',
+                cols['B']+'_k_iso04_dca'     : 'KisoDca',
+                cols['B']+'_b_iso04_dca'     : 'BisoDca',
+                cols['B']+'_l1_n_isotrk_dca' : 'L1Nisotrk',
+                cols['B']+'_l2_n_isotrk_dca' : 'L2Nisotrk',
+                cols['B']+'_k_n_isotrk_dca'  : 'KNisotrk',
+                cols['K']+'_DCASig'          : 'KsDca',
+                cols['B']+'_k_opp_l_mass'    : 'KLmassD0',
+                cols['B']+'_p_assymetry'     : 'Passymetry',
+                'sortedlep1_pt'              : 'L1pt',
+                'sortedlep2_pt'              : 'L2pt',
+                'sortedlep1_eta'             : 'L1eta',
+                'sortedlep2_eta'             : 'L2eta',
+                'sortedlep1_id'              : 'L1id',
+                'sortedlep2_id'              : 'L2id',
+                'sortedlep1_iso'             : 'L1iso',
+                'sortedlep2_iso'             : 'L2iso',
+                'sortedlep1_iso04_dca'       : 'L1isoDca',
+                'sortedlep2_iso04_dca'       : 'L2isoDca',
+                # 'sortedlep1_trk_mass'        : 'L1Trkmass',
+                # 'sortedlep2_trk_mass'        : 'L2Trkmass',
+                'nBToKEE'                    : 'nB',
+                'PV_npvs'                    : 'Npv',
+                'event'                      : 'idx',
+                'trig_wgt'                   : 'trig_wgt',
+        },
+        'scalar_branches' : {
+                'nBToKEE'  : 'nB',
+                'PV_npvs'  : 'Npv',
+                'event'    : 'idx',
+                'trig_wgt' : 'trig_wgt',
+        },
+        'l1_branches' : {
+                cols['B']+'_fit_l1_pt'                     : 'sortedlep{order}_pt',
+                cols['B']+'_fit_l1_eta'                    : 'sortedlep{order}_eta',
+                cols['B']+'_l1_iso04'                      : 'sortedlep{order}_iso',
+                cols['L1']+'_PFEleMvaID_RetrainedRawValue' : 'sortedlep{order}_id',
+                cols['B']+'_l1_iso04_dca'                  : 'sortedlep{order}_iso04_dca',
+                # cols['B']+'_l1_trk_mass'                   : 'sortedlep{order}_trk_mass',
+        },
+        'l2_branches' : {
+                cols['B']+'_fit_l2_pt'                     : 'sortedlep{order}_pt',
+                cols['B']+'_fit_l2_eta'                    : 'sortedlep{order}_eta',
+                cols['B']+'_l2_iso04'                      : 'sortedlep{order}_iso',
+                cols['L2']+'_PFEleMvaID_RetrainedRawValue' : 'sortedlep{order}_id',
+                cols['B']+'_l2_iso04_dca'                  : 'sortedlep{order}_iso04_dca',
+                # cols['B']+'_l2_trk_mass'                   : 'sortedlep{order}_trk_mass',
+        },
+        'presel' : {
+                # cols['B']+'_svprob'      : 0.0001,
+                # cols['B']+'_fit_cos2D'   : 0.9,
+                # cols['B']+'_fit_pt'      : 0.0,
+                # cols['B']+'_l_xy_sig'    : 3.0,
+                # cols['K']+'_pt'          : 0.5,
+                # cols['B']+'_mll_fullfit' : 1.05,
+                # cols['B']+'_trk_minxy2'  : 0.000001,
+        },
+        'presel_lep' :  {
+                # 'sortedlep1_pt' : 2.0,
+                # 'sortedlep2_pt' : 2.0,
+                # 'sortedlep1_id' : -1.5,
+                # 'sortedlep2_id' : -3.0
+        },
+        'presel_dr' : {
+                # cols['L1']+'_DR' : 0.03,
+                # cols['L2']+'_DR' : 0.03,
+                # cols['K']+'_DR'  : 0.03
+        },
+        'presel_trg' : {},
+    }
 
     if args.mode=='split':
         args.mode='train'
@@ -435,4 +440,3 @@ if __name__ == '__main__':
         preprocess_inputs(files, args, branch_dict)
     else:
         preprocess_inputs(files, args, branch_dict)
-

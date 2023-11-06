@@ -85,7 +85,7 @@ def train_bdt(args):
     lgr.log(f'Inputs: {args.features}')
     if args.preselection:
         lgr.log('Preselection Cuts:')
-        lgr.log(f'  - {args.preseelction}')
+        lgr.log(f'  - {args.preselection}')
         # for k, val in args.preselection.items():
         #     lgr.log(f'  -{k}: {val}')
     lgr.log('Model Hyperparameters:')
@@ -187,6 +187,6 @@ if __name__ == '__main__':
     args.features = ['Bprob', 'BsLxy', 'L2iso/L2pt', 'Kpt/Bmass', 'Bcos', 'Kiso/Kpt', 'LKdz', 'LKdr', 'Bpt/Bmass', 'Passymetry', 'Kip3d/Kip3dErr', 'L1id', 'L2id']
 
     # Preselection Cuts
-    args.preselection = 'KLmassD0 > 2. & (Mll>1.05 | Mll<2.45)'
+    args.preselection = '(KLmassD0 > 2.) & ((Mll>1.05) | (Mll<2.45))'
 
     train_bdt(args)

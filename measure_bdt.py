@@ -100,7 +100,7 @@ if __name__ == '__main__':
                 'Mll',
                 'Bprob',
                 'BsLxy',
-                'Npv',
+                # 'Npv',
                 'L1pt',
                 'L2pt',
                 'Kpt',
