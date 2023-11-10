@@ -34,53 +34,6 @@ def preprocess_inputs(runFiles,args,branch_dict):
 
     assert args.sortby=='eltype' or args.sortby=='leppt'
     
-    ############################################ WIP Update using Uproot ############################################
-    #################################################################################################################
-    
-    # ncands_branch = 'nBToKMuMu' if 'Mu' in args.lepton else 'nBToKEE'
-    # needed_branches = list({ncands_branch} | branch_dict['output_branches'].keys() | branch_dict['l1_branches'].keys() | branch_dict['l2_branches'].keys())
-    # needed_branches = [br for br in needed_branches if 'sortedlep' not in br]
-    # tree_values = {}
-    # for i, tree in enumerate(ur.iterate([runFile+":Events" for runFile in runFiles],needed_branches,cut=args.split,namedecode="utf-8",library="ak")):
-    #     presel_mask = np.full(tree[branch_dict['candidate']+"_fit_mass"].to_numpy().shape, True)
-    #     # we want to rearrange leptons to make sure that they are properly sorted (pt or type). so the output leptonX will have two contributions from input leptonX and Y
-    #     outl1_inl1_mask = np.copy(presel_mask)
-    #     outl1_inl2_mask = np.copy(presel_mask)
-
-    #     # Deal with scalars
-    #     scalars = {}
-    #     entries_per_evt = tree[ncands_branch]
-    #     for br, outname in branch_dict['scalar_branches'].items():
-    #         values_scl = tree[br]
-    #         scalars[br] = np.repeat(values_scl,entries_per_evt)
-
-
-    #     for br, br_name in branch_dict['output_branches'].items():
-    #         selected_evts = np.ones_like(presel_mask)
-    #         if False:
-    #             pass
-    #         # #check if it is a lepton
-    #         # if br in outleps.keys():
-    #         #     selected_evts = outleps[br][presel_mask]
-    #         #check if it a scalar
-    #         elif br in scalars.keys():
-    #             selected_evts = scalars[br][presel_mask]
-    #         else:
-    #             # if br in copied_branches.keys():
-    #             #      selected_evts = ak.flatten(tree[br])[presel_mask]
-    #             # else:
-    #             #      selected_evts = copied_branches[br][presel_mask]
-    #             pass
-    #         if br_name not in tree_values.keys():
-    #             tree_values.update({br_name:selected_evts})
-    #         else:
-    #             tree_values[br_name]=np.concatenate((tree_values[br_name], selected_evts))
-    #     with ur.recreate(args.outpath+"/"+name+"_uproot.root") as f:
-    #         f["mytree"] = tree_values
-
-    #################################################################################################################
-    #################################################################################################################
-
     tree = rt.TChain('Events')
     for f in runFiles: 
         tree.Add(f)
