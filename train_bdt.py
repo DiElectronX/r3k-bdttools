@@ -6,9 +6,10 @@ import uproot as ur
 import pandas as pd
 import warnings
 from xgboost import XGBClassifier
-from hep_ml.uboost import uBoostBDT
+from hep_ml.uboost import uBoostBDT, uBoostClassifier
 from hep_ml.losses import KnnAdaLossFunction
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from sklearn.utils.class_weight import compute_sample_weight
@@ -55,31 +56,34 @@ def train_bdt(args):
     weightTest = compute_sample_weight(class_weight='balanced', y=Y_test)
 
     # initialize model
-    # clf = DecisionTreeClassifier(max_depth=args.depth)
-    clf = XGBClassifier(
+    clf = DecisionTreeClassifier(
             max_depth=args.depth,
-            n_estimators=args.ntree,
-            learning_rate=args.lrate,
-            min_child_weight=args.nodeweight,
-            gamma=args.gamma,
-            subsample=args.subsample,
-            scale_pos_weight=args.scaleweight,
-            objective='binary:'+args.lossfunction,
     )
+    # clf = GradientBoostingClassifier(
+    #         n_estimators=args.ntree,
+    #         loss='log_loss', #args.lossfunction,
+    #         learning_rate=args.lrate,
+    #         subsample=args.subsample,
+    #         max_depth=args.depth,
+    #         verbose=args.verbose,
+    # )
+    # clf = XGBClassifier(
+    #         max_depth=args.depth,
+    #         n_estimators=args.ntree,
+    #         learning_rate=args.lrate,
+    #         min_child_weight=args.nodeweight,
+    #         gamma=args.gamma,
+    #         subsample=args.subsample,
+    #         scale_pos_weight=args.scaleweight,
+    #         objective='binary:'+args.lossfunction,
+    # )
 
-    bdt = uBoostBDT(
+    bdt = uBoostClassifier(
             uniform_features=args.uniform_features,
             train_features=args.features,
             n_neighbors=args.neighbors,
-            uniform_label=1,
+            uniform_label=0,
             base_estimator=clf,
-            # n_estimators=args.ntree,
-            # learning_rate=args.lrate,
-            # min_child_weight=args.nodeweight,
-            # gamma=args.gamma,
-            # subsample=args.subsample,
-            # scale_pos_weight=args.scaleweight,
-            # objective= 'binary:'+args.lossfunction
     )
 
     # train model
@@ -87,10 +91,6 @@ def train_bdt(args):
     bdt.fit(
         X_train, 
         Y_train, 
-        # neighbours_matrix=lossMtx,
-        # eval_set=eval_set,
-        # sample_weight=weightTrain, 
-        # verbose=2 if args.verbose else 0,
     )
     lgr.log(f'Elapsed Training Time = {round(time.perf_counter() - start)}s')
 
@@ -103,20 +103,6 @@ def train_bdt(args):
     acc = accuracy_score(Y_test, predictions)
     lgr.log(f'Accuracy: {round(acc*100,1)}%')
     
-    # if args.plot:
-    #     import matplotlib.pyplot as plt
-    #     results = bdt.base_estimator.evals_result()
-    #     fig, ax = plt.subplots()
-    #     ax.plot(np.arange(len(results['validation_0']['logloss'])),
-    #             results['validation_0']['logloss'], label='Train')
-    #     ax.plot(np.arange(len(results['validation_1']['logloss'])),
-    #             results['validation_1']['logloss'], label='Test')
-    #     ax.legend()
-    #     plt.xlabel('Epoch')
-    #     plt.ylabel('Log Loss')
-    #     plt.title('XGBoost Log Loss')
-    #     plt.savefig(os.path.join(args.outdir, f'logloss_{make_file_name(args)}.png'))
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -132,9 +118,9 @@ if __name__ == '__main__':
                         type=str, choices=['kmumu', 'kee'], help='decay type')
     parser.add_argument('--label', dest='label', default='',
                         type=str, help='output file label')
-    parser.add_argument('--neighbors', dest='neighbors', default=10,
+    parser.add_argument('--neighbors', dest='neighbors', default=70,
                         type=int, help='number of k nearest neighbors')
-    parser.add_argument('--ntree', dest='ntree', default=750,
+    parser.add_argument('--ntree', dest='ntree', default=200,
                         type=int, help='number of trees')
     parser.add_argument('--depth', dest='depth', default=6,
                         type=int, help='tree depth')

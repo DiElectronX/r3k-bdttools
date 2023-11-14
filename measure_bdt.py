@@ -19,8 +19,8 @@ def evaluate_bdt(args):
         data = datafile['mytree'].arrays(args.features, cut=presel, library='pd')
         output_branches = datafile['mytree'].arrays(out_cols, cut=presel, library='pd')
 
-    if selection:
-        print(f'Additional Preselection Cuts:\n{args.preselection}')
+    if presel:
+        print(f'Additional Preselection Cuts:\n{presel}')
 
     output_branches['xgb'] = np.array(args.bdt.predict_proba(data)[:,1], dtype=np.float64)
 
