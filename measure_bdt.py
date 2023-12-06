@@ -5,33 +5,7 @@ import numpy as np
 import uproot as ur
 from pathlib import Path
 from joblib import load
-
-
-def load_dir_args(args):
-    with open(os.path.join(args.fromdir, f'{"log_"+args.label if args.label else "log"}.txt')) as f:
-        for line in f:
-            if 'Decay: ' in line:
-                args.decay = line.split('Decay: ', 1)[1].strip()
-            if 'Inputs: ' in line:
-                args.features = ast.literal_eval(
-                    line.split('Inputs: ', 1)[1].strip())
-            if ('Saving Model ' in line) and ('.pkl' in line):
-                args.model = line.split('Saving Model ', 1)[1].strip()
-
-    print(f'Measuring {args.decay} Decay')
-    print(f'Using Model {args.model}')
-    print(f'Using Input Vector {args.features}')
-
-
-def check_rm_files(files=[]):
-    for fl in files:
-        if os.path.isfile(fl):
-            os.system('rm '+fl)
-
-
-def edit_filename(path, prefix='', suffix=''):
-    path = Path(path)
-    return os.path.join(str(path.parent), (prefix+'_' if prefix else '') + str(path.stem) + ('_'+suffix if suffix else '') + str(path.suffix))
+from utils import load_dir_args, check_rm_files, edit_filename
 
 
 def evaluate_bdt(bdt, args, bdt_cols, output_dict, selection):

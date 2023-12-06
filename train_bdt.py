@@ -9,58 +9,7 @@ from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from sklearn.utils.class_weight import compute_sample_weight
-
-
-class Logger():
-    def __init__(self, filepath, verbose=True):        
-        self.filepath = filepath
-        self.verbose = verbose
-        if os.path.exists(self.filepath):
-            os.remove(self.filepath)
-        
-        log_format = '%(levelname)s | %(asctime)s | %(message)s'
-        logging.basicConfig(level=logging.INFO, format=log_format)
-
-    def log(self, string):
-        with open(self.filepath, 'a+') as f:
-            f.write(string+'\n')
-        if self.verbose:
-            logging.info(string)
-
-
-def make_file_name(args):
-    name_blocks = [
-        args.modelname,
-        'Nsig'+str(args.stop_sig)+'_Nbkg' +
-        str(args.stop_bkg) if (args.stop_sig or args.stop_bkg) else '',
-        args.label,
-    ]
-    return '_'.join(filter(None, name_blocks))
-
-def save_model(model, args, formats, logger):
-    output_name = make_file_name(args)
-
-    if '.pkl' in formats:
-        name = os.path.join(args.outdir, output_name+'.pkl')
-        dump(model, name)
-        if logger:
-            logger.log(f'Saving Model {name}')
-    if '.text' in formats:
-        name = os.path.join(args.outdir, output_name+'.text')
-        booster = model.get_booster()
-        booster.dump_model(name, dump_format='text')
-        if logger:
-            logger.log(f'Saving Model {name}')
-    if '.json' in formats:
-        name = os.path.join(args.outdir, output_name+'.json')
-        model.save_model(name)
-        if logger:
-            logger.log(f'Saving Model {name}')
-    if '.txt' in formats:
-        name = os.path.join(args.outdir, output_name+'.txt')
-        model.save_model(name)
-        if logger:
-            logger.log(f'Saving Model {name}')
+from utils import Logger, make_file_name, save_model
 
 
 def train_bdt(args):
@@ -187,6 +136,6 @@ if __name__ == '__main__':
     args.features = ['Bprob', 'BsLxy', 'L2iso/L2pt', 'Kpt/Bmass', 'Bcos', 'Kiso/Kpt', 'LKdz', 'LKdr', 'Bpt/Bmass', 'Passymetry', 'Kip3d/Kip3dErr', 'L1id', 'L2id']
 
     # Preselection Cuts
-    args.preselection = '(KLmassD0 > 2.) & ((Mll>1.05) | (Mll<2.45))'
+    args.preselection = '(KLmassD0 > 2.) & ((Mll>1.05) & (Mll<2.45))'
 
     train_bdt(args)

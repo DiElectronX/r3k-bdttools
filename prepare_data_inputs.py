@@ -4,6 +4,8 @@ import uproot as ur
 import awkward as ak
 import multiprocessing as mp
 from glob import glob
+from utils import preprocess_files
+
 
 def preprocess_files(input_files, nparts, total):
     filelist = [input_files] if input_files.endswith('.root') else glob(input_files+'/**/*.root',recursive=True)[:total]
@@ -15,6 +17,7 @@ def preprocess_files(input_files, nparts, total):
     if not outfiles: 
         raise ValueError('Invalid input path/file')
     return outfiles
+
 
 def preprocess_inputs(runFiles,ipart,args,branch_dict):
     if args.mode=='train':
@@ -160,6 +163,7 @@ def preprocess_inputs(runFiles,ipart,args,branch_dict):
     with ur.recreate(args.outpath+'/'+name+'.root') as f:
         f['mytree'] = tree_values
 
+
 def mp_worker(files,ipart,args,branch_dict):
     if args.mode=='split':
         args.mode='train'
@@ -172,6 +176,7 @@ def mp_worker(files,ipart,args,branch_dict):
         preprocess_inputs(files,ipart,args,branch_dict)
 
     print(f'Part {ipart} Finished')
+
 
 if __name__ == '__main__':
     parser= argparse.ArgumentParser()
