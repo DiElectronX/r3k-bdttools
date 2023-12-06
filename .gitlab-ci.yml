@@ -17,7 +17,7 @@ ruff_linting:
   stage: codechecks
   image: registry.gitlab.com/pipeline-components/ruff:latest
   script:
-    - ruff --format gitlab --ignore E501,E701 .
+    - ruff check --format gitlab --ignore E501,E701 .
   allow_failure: true
 
 prepare_data_inputs:
