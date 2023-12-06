@@ -1,9 +1,7 @@
 import os
 import argparse
-import ast
 import numpy as np
 import uproot as ur
-from pathlib import Path
 from joblib import load
 from utils import load_dir_args, check_rm_files, edit_filename
 

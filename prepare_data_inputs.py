@@ -3,7 +3,6 @@ import numpy as np
 import uproot as ur
 import awkward as ak
 import multiprocessing as mp
-from glob import glob
 from utils import preprocess_files
 
 
