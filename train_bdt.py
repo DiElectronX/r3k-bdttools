@@ -184,9 +184,9 @@ if __name__ == '__main__':
     args, unknown = parser.parse_known_args()
 
     # Select Input Variables
-    args.features = ['Bprob', 'BsLxy', 'L2iso/L2pt', 'Kpt/Bmass', 'Bcos', 'Kiso/Kpt', 'LKdz', 'LKdr', 'Bpt/Bmass', 'Passymetry', 'Kip3d/Kip3dErr', 'L1id', 'L2id']
+    args.features = ['Bprob', 'BsLxy', 'Bcos', 'L1id', 'L2id', 'L2iso/L2pt', 'Kiso/Kpt', 'Passymetry', 'Kip3d/Kip3dErr', 'LKdz', 'LKdr']
 
     # Preselection Cuts
-    args.preselection = '(KLmassD0 > 2.) & ((Mll>1.05) | (Mll<2.45))'
+    args.preselection = '(KLmassD0 > 2.) & ((Mll>1.05) & (Mll<2.45))'
 
     train_bdt(args)

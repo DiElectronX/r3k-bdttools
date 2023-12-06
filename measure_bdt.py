@@ -83,7 +83,8 @@ if __name__ == '__main__':
     # features = ['Bprob','BsLxy','L2iso/L2pt','Kpt/Bmass','Bcos','Kiso/Kpt','LKdz','LKdr','Bpt/Bmass','Passymetry','Kip3d/Kip3dErr']
     # Otto / 'Run 2' Inputs
     # Missing: BBDphi, BTrkdxy2
-    features = ['Bprob', 'BsLxy', 'L2iso/L2pt', 'Kpt/Bmass', 'Bcos', 'Kiso/Kpt', 'LKdz', 'LKdr', 'Bpt/Bmass', 'Passymetry', 'Kip3d/Kip3dErr', 'L1id', 'L2id']
+    # features = ['Bprob', 'BsLxy', 'L2iso/L2pt', 'Kpt/Bmass', 'Bcos', 'Kiso/Kpt', 'LKdz', 'LKdr', 'Bpt/Bmass', 'Passymetry', 'Kip3d/Kip3dErr', 'L1id', 'L2id']
+    features = ['Bprob', 'BsLxy', 'Bcos', 'L1id', 'L2id', 'L2iso/L2pt', 'Kiso/Kpt', 'Passymetry', 'Kip3d/Kip3dErr', 'LKdz', 'LKdr']
 
     # Jay Inputs
     # Missing: ProbeTracks_DCASig[K], ProbeTracks_dzTrg[K], BToKEE_k_svip2d, BToKEE_l1_dxy_sig, BToKEE_l1_dzTrg, BToKEE_l2_dxy_sig, BToKEE_l2_dzTrg, BToKEE_llkDR
@@ -119,9 +120,11 @@ if __name__ == '__main__':
                 'Keta',
                 'L2eta',
                 'L1eta',
+                'Bpt',
         ],
         'data' : [],
-        'mc' : [ 'trig_wgt' ],
+        'mc' : [],
+        # 'mc' : [ 'trig_wgt' ],
     }
     # load from directory
     if args.fromdir:
