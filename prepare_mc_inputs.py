@@ -1,6 +1,6 @@
 import time
 import argparse
-import ROOT as rt
+import ROOT
 from tqdm import tqdm
 from array import array
 from math import isinf, isnan
@@ -24,7 +24,7 @@ def preprocess_inputs(runFiles,args,branch_dict):
 
     name = 'trainSgn_bdt'
     if args.writeMeasurment:
-        name = 'MCmeasurment_bdt'
+        name = 'MCmeasurement_bdt'
     name += '_KMuMu' if args.lepton=='Mu' else ('_KEE_PFeLowPt' if args.lepton=='LowPt' else ('_KEE_PFe' if args.lepton=='PFe' else ''))
     if args.useLowQ:
         name+='_lowQ'
@@ -32,19 +32,21 @@ def preprocess_inputs(runFiles,args,branch_dict):
         name+='_highQ'
     if args.nstart!=0 or args.nend!=-1:
         name+='_Evts_'+str(round(args.nstart))+'-'+str(round(args.nend))
-    
+
     if args.specificTrigger:
         print('Requiring',args.specificTrigger,' trigger')
         name+='_'+args.specificTrigger.split('_')[1]+args.specificTrigger.split('_')[2]
 
     assert args.sortby=='eltype' or args.sortby=='leppt'
-    
-    tree = rt.TChain('Events')
-    for f in runFiles: 
+
+    tree = ROOT.TChain('Events')
+    for f in runFiles:
         tree.Add(f)
 
     print(args.mode.capitalize()+' Mode')
     print(f'- sorting by {args.sortby}')
+    if args.nend<=0:
+        args.nend = tree.GetEntries()
     if tree.GetEntries()<args.nend:
         args.nend=tree.GetEntries()
     print('- start=',round(args.nstart),'end=',round(args.nend),'all entries=',tree.GetEntries())
@@ -56,7 +58,7 @@ def preprocess_inputs(runFiles,args,branch_dict):
     if args.nend<0:
         args.nend=tree.GetEntries()
 
-    output_tree = rt.TTree('mytree','mytree')
+    output_tree = ROOT.TTree('mytree','mytree')
 
     output_array = {branch: array('i' if 'event' in branch else 'f',[0]) for branch in branch_dict['output_branches'].keys() }
     for branch in branch_dict['output_branches'].keys():
@@ -72,14 +74,14 @@ def preprocess_inputs(runFiles,args,branch_dict):
         output_array['Bmass_constraintJpsi'] = array('f',[0])
         output_array['Bmass_constraintPsi2S'] = array('f',[0])
         output_tree.Branch('Bmass_constraintJpsi',output_array['Bmass_constraintJpsi'],'Bmass_constraintJpsi/F')
-        output_tree.Branch('Bmass_constraintPsi2S',output_array['Bmass_constraintPsi2S'],'Bmass_constraintPsi2S/F')   
+        output_tree.Branch('Bmass_constraintPsi2S',output_array['Bmass_constraintPsi2S'],'Bmass_constraintPsi2S/F')
 
 
     iev = 0
     tstart = time.time()
     tot = 0
     for ev in tqdm(tree, total=args.nend):
-        if iev < args.nstart: 
+        if iev < args.nstart:
             iev += 1
             continue
         if iev==args.nend: break
@@ -99,22 +101,22 @@ def preprocess_inputs(runFiles,args,branch_dict):
                 dxyErr=getattr(ev,'recoMu'+lep+'_dxyErr')
                 dxy=getattr(ev,'recoMu'+lep+'_dxy')
                 sdxy=0
-                if dxyErr>0: 
+                if dxyErr>0:
                     sdxy=abs(dxy)/abs(dxyErr)
                 trg=getattr(ev,'recoMu'+lep+'_isTrg')
                 if pt>branch_dict['presel_trg']['pt'] and abs(eta)<branch_dict['presel_trg']['eta'] and abs(sdxy)>branch_dict['presel_trg']['sdxy'] and trg==1:
                     ntrgmu+=1
-            if ntrgmu==0: continue   
+            if ntrgmu==0: continue
         tot+=1
         # reconstruction DR
         skip=False
         for cut in branch_dict['presel_dr'].keys():
-            if getattr(ev,cut)>branch_dict['presel_dr'][cut]: 
+            if getattr(ev,cut)>branch_dict['presel_dr'][cut]:
                 skip=True
                 break
         if skip:  continue
         #read branches for preselection
-        branches={ cut:getattr(ev,cut) for cut in branch_dict['presel'].keys() }  
+        branches={ cut:getattr(ev,cut) for cut in branch_dict['presel'].keys() }
         skip=False
         # apply cuts
         for cut in branches.keys():
@@ -137,10 +139,10 @@ def preprocess_inputs(runFiles,args,branch_dict):
                 lep1_branches.pop(cols['L1']+'_pfmvaId',None)
                 lep2_branches.pop(cols['L2']+'_mvaId',None)
                 lep1_branches,lep2_branches = lep2_branches, lep1_branches
-            else: 
+            else:
                 print('Warning problem sorting by type failed')
                 print('e1 pf',getattr(ev,'recoE1_isPF'),'e2 pf',getattr(ev,'recoE2_isPF'),'bpt',getattr(ev,'recoB_fit_pt'))
-                continue 
+                continue
         else:
             for branch in lep1_branches.keys():
                 if '_pt' in branch:
@@ -167,11 +169,10 @@ def preprocess_inputs(runFiles,args,branch_dict):
 
             if pt1<pt2:
                 lep1_branches,lep2_branches = lep2_branches, lep1_branches
-                
 
         #naming
         presel_daughter=0
-        for branch in lep1_branches.keys(): 
+        for branch in lep1_branches.keys():
             lep1_branches[branch]= lep1_branches[branch].format(order=str(1))
             if lep1_branches[branch] in branch_dict['presel_lep'].keys():
                 if getattr(ev,branch)>branch_dict['presel_lep'][lep1_branches[branch]]:
@@ -193,20 +194,22 @@ def preprocess_inputs(runFiles,args,branch_dict):
         MB=getattr(ev,'{0}_{1}'.format(cols['B'],'fit_mass'))
         if MB<MBmin or MB>MBmax: continue
         Mll=getattr(ev,'{0}_{1}'.format(cols['B'],'mll_fullfit'))
-        if args.useLowQ and (not args.AddHighQ) and (Mll > Mll_lowQ[0] or Mll < Mll_lowQ[1]): 
+        isLowQ = Mll>branch_dict['lowq2_region'][0] and Mll<branch_dict['lowq2_region'][1]
+        isHighQ = Mll>branch_dict['highq2_region'][0] and Mll<branch_dict['highq2_region'][1]
+        if args.useLowQ and (not args.AddHighQ) and (not isLowQ):
             continue
-        if args.useLowQ and args.AddHighQ and (Mll > Mll_lowQ and Mll<Mll_highQ): 
+        if args.useLowQ and args.AddHighQ and (not (isLowQ or isHighQ)):
             continue
         MLK_values={}
         if args.addMlkVariables:
-            vlep = rt.TLorentzVector()
-            vK = rt.TLorentzVector()
+            vlep = ROOT.TLorentzVector()
+            vK = ROOT.TLorentzVector()
             if lep2_charge==k_charge:
                     vlep.SetPtEtaPhiM(getattr(ev,'{0}_fit_l1_pt'.format(cols['B'])), getattr(ev,'{0}_fit_l1_eta'.format(cols['B'])),getattr(ev,'{0}_fit_l1_phi'.format(cols['B'])),0.105)
             else:
                     vlep.SetPtEtaPhiM(getattr(ev,'{0}_fit_l2_pt'.format(cols['B'])), getattr(ev,'{0}_fit_l2_eta'.format(cols['B'])),getattr(ev,'{0}_fit_l2_phi'.format(cols['B'])),0.105)
             vK.SetPtEtaPhiM(getattr(ev,'recoB_fit_k_pt'), getattr(ev,'recoB_fit_k_eta'),getattr(ev,'recoB_fit_k_phi'),0.105)
-                        
+
             MLK_values['MLK_BothMuMass']=(vK+vlep).M()
             vlep.SetPtEtaPhiM(vlep.Pt(),vlep.Eta(),vlep.Phi(),0.493)
             vK.SetPtEtaPhiM(vK.Pt(),vK.Eta(),vK.Phi(),0.139)
@@ -216,7 +219,7 @@ def preprocess_inputs(runFiles,args,branch_dict):
         if addMassConstraintVariables:
             constraintMass['Bmass_constraintJpsi']=MB-Mll+3.097
             constraintMass['Bmass_constraintPsi2S']=MB-Mll+3.686
-            
+
         inf_nan_veto=False
         sortedlep={}
         for key in lep1_branches:
@@ -243,20 +246,20 @@ def preprocess_inputs(runFiles,args,branch_dict):
 
             else:
                 if 'HLT' in key:
-                    if ord(getattr(ev,key)): 
+                    if ord(getattr(ev,key)):
                             output_array[key][0]=1.
-                    else: 
+                    else:
                             output_array[key][0]=0.
                 else:
                     output_array[key][0]=getattr(ev,key)
-                    if isinf(getattr(ev,key)) or isnan(getattr(ev,key)): 
+                    if isinf(getattr(ev,key)) or isnan(getattr(ev,key)):
                             inf_nan_veto=True
         if inf_nan_veto:
             continue
         output_tree.Fill()
 
     name+='_'+args.label if args.label else ''
-    with rt.TFile(f'{args.outpath}/{name}.root','RECREATE'):
+    with ROOT.TFile(f'{args.outpath}/{name}.root','RECREATE'):
         output_tree.Write()
     print(f'{tot} Events Processed')
     print(f'{round(time.time()-tstart)} Seconds Elapsed')
@@ -298,6 +301,10 @@ if __name__ == '__main__':
 
     branch_dict = {
         'candidate' : cols['B'],
+        'candidate_mass_range'     : (4.5,6.),
+        'candidate_mass_sidebands' : ((4.8,5.),(5.4,5.6)),
+        'lowq2_region'             : (1.05,2.45),
+        'highq2_region'            : (3.85,6.),
         'output_branches' : {
                 cols['B']+'_mll_fullfit'     : 'Mll',
                 cols['B']+'_fit_pt'          : 'Bpt',
@@ -389,8 +396,8 @@ if __name__ == '__main__':
         args.mode='train'
         args.split='event%2==0'
         preprocess_inputs(files, args, branch_dict)
-        args.mode='measure'
-        args.split='event%2!=0'
-        preprocess_inputs(files, args, branch_dict)
+        #args.mode='measure'
+        #args.split='event%2!=0'
+        #preprocess_inputs(files, args, branch_dict)
     else:
         preprocess_inputs(files, args, branch_dict)
