@@ -9,11 +9,7 @@ from glob import glob
 
 def preprocess_inputs(runFiles,args,branch_dict):
     # Branch Parameters
-    MBmin = 4.5
-    MBmax = 6.0
-    Mll_lowQ = (1.05, 2.45) # applied only if mode is training. measurment mode ignores it
-    Mll_highQ = 4.00 # applied only in highq2train
-    addMassConstraintVariables = True
+    addMassConstraintVariables = False
 
     if args.mode=='train':
         args.useLowQ = True
@@ -192,7 +188,8 @@ def preprocess_inputs(runFiles,args,branch_dict):
         if args.selectEtaBin=='BB' and ( abs(eta1)>1.5 or abs(eta2)>1.5): continue
         if args.selectEtaBin=='BE_EE' and ( abs(eta1)<1.5 and abs(eta2)<1.5): continue
         MB=getattr(ev,'{0}_{1}'.format(cols['B'],'fit_mass'))
-        if MB<MBmin or MB>MBmax: continue
+        if MB<branch_dict['candidate_mass_range'][0] or MB>branch_dict['candidate_mass_range'][1]:
+            continue
         Mll=getattr(ev,'{0}_{1}'.format(cols['B'],'mll_fullfit'))
         isLowQ = Mll>branch_dict['lowq2_region'][0] and Mll<branch_dict['lowq2_region'][1]
         isHighQ = Mll>branch_dict['highq2_region'][0] and Mll<branch_dict['highq2_region'][1]
