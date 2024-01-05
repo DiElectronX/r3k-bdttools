@@ -21,10 +21,16 @@ def train_bdt(args):
     with ur.open(args.sigfile) as sigfile, ur.open(args.bkgfile) as bkgfile:
         sig_dict = sigfile['mytree'].arrays(
             args.features, cut=args.preselection if args.preselection else None, entry_stop=args.stop_sig, library='np')
+        signal = np.stack(list(sig_dict.values()))
+        
+        mc_weights = sigfile['mytree'].arrays(
+            [args.sample_weights], cut=args.preselection if args.preselection else None, entry_stop=args.stop_sig, library="np")[args.sample_weights]
+
         bkg_dict = bkgfile['mytree'].arrays(
             args.features, cut=args.preselection if args.preselection else None, entry_stop=args.stop_bkg, library='np')
-        signal = np.stack(list(sig_dict.values()))
         backgr = np.stack(list(bkg_dict.values()))
+
+        data_weights = np.ones(backgr.shape[1])
 
     # load model info
     lgr.log(f'Model Name: {args.modelname}')
@@ -42,11 +48,11 @@ def train_bdt(args):
     # load input data
     X = np.transpose(np.concatenate((signal, backgr), axis=1))
     Y = np.concatenate((np.ones(signal.shape[1]), np.zeros(backgr.shape[1])))
-    X_train, X_test, Y_train, Y_test = train_test_split(
-        X, Y, test_size=0.05, random_state=42)
+    weights = np.concatenate((mc_weights, data_weights))
+
+    X_train, X_test, Y_train, Y_test, weights_train, weights_test = train_test_split(
+        X, Y, weights, test_size=0.05, random_state=42)
     eval_set = ((X_train, Y_train), (X_test, Y_test))
-    weightTrain = compute_sample_weight(class_weight='balanced', y=Y_train)
-    compute_sample_weight(class_weight='balanced', y=Y_test)
 
     # initialize model
     bdt = XGBClassifier(
@@ -63,7 +69,7 @@ def train_bdt(args):
     # train model
     start = time.perf_counter()
     bdt.fit(X_train, Y_train, eval_set=eval_set,
-            sample_weight=weightTrain, verbose=2 if args.verbose else 0)
+            sample_weight=weights_train, verbose=2 if args.verbose else 0)
     lgr.log(f'Elapsed Training Time = {round(time.perf_counter() - start)}s')
 
     # save model
@@ -131,7 +137,8 @@ if __name__ == '__main__':
     args, unknown = parser.parse_known_args()
 
     # Select Input Variables
-    args.features = ['Bprob', 'BsLxy', 'L2iso/L2pt', 'Kpt/Bmass', 'Bcos', 'Kiso/Kpt', 'LKdz', 'LKdr', 'Bpt/Bmass', 'Passymetry', 'Kip3d/Kip3dErr', 'L1id', 'L2id']
+    args.features = ['Bprob', 'BsLxy', 'L2iso/L2pt', 'Bcos', 'Kiso/Kpt', 'LKdz', 'LKdr', 'Passymetry', 'Kip3d/Kip3dErr', 'L1id', 'L2id']
+    args.sample_weights = 'trig_wgt'
 
     # Preselection Cuts
     args.preselection = '(KLmassD0 > 2.) & ((Mll>1.05) & (Mll<2.45))'
