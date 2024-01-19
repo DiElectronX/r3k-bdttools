@@ -244,7 +244,6 @@ def main(args):
                     'PV_npvs'    : 'Npv',
                     'event'      : 'idx',
                     'Presel_BDT' : 'presel_bdt',
-                    'trig_wgt'   : 'trig_wgt',
             },
             'presel' : {
                     f'{col+"_svprob"} > 0.0001',
@@ -267,6 +266,9 @@ def main(args):
         pass
     else:
         raise KeyError('pick allowed column name')
+
+    if 'data' not in args.channel:
+        branch_dict['scalar_branches'].update({'trig_wgt' : 'trig_wgt'})
 
     if args.nparts>1:
         print(f'Distributing {args.total} Files to {args.nparts} workers...')
