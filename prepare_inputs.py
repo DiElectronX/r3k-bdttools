@@ -20,7 +20,7 @@ def preprocess_inputs(runFiles, ipart, args, branch_dict):
     tree_values={}
     ncands_branch = 'n'+branch_dict['candidate']
     needed_branches = list({ncands_branch} | branch_dict['cand_branches'].keys() | branch_dict['scalar_branches'].keys())
-    for i, tree in enumerate(ur.iterate([runFile+':Events' for runFile in runFiles],needed_branches,cut=args.split,namedecode='utf-8',library='ak')):
+    for i, tree in enumerate(ur.iterate([runFile+':Events' for runFile in runFiles],needed_branches,cut=args.split,namedecode='utf-8',library='np')):
         presel_mask = np.full(ak.flatten(tree[branch_dict['candidate']+'_fit_mass'],ax_flat).to_numpy().shape, True)
         # we want to rearrange leptons to make sure that they are properly sorted (pt or type). so the output leptonX will have two contributions from input leptonX and Y
         outl1_inl1_mask = np.copy(presel_mask)
@@ -28,7 +28,7 @@ def preprocess_inputs(runFiles, ipart, args, branch_dict):
 
         # Deal with scalars
         entries_per_evt = tree[ncands_branch]
-        scalars = {br : np.repeat(tree[br],entries_per_evt) for br in branch_dict['scalar_branches'].keys()}
+        scalars = {br : np.repeat(tree[br],1 if args.flat else entries_per_evt) for br in branch_dict['scalar_branches'].keys()}
 
         sortby = 'leppt'
         if sortby=='eltype':
@@ -64,33 +64,33 @@ def preprocess_inputs(runFiles, ipart, args, branch_dict):
         for cut in branch_dict['presel']:
             pattern = '|'.join(map(re.escape, ['>', '<', '>=', '<=']))
             br, op, val = [part.strip() for part in re.split(f"({pattern})", cut) if part]
-            presel_mask *= eval(f'np.array((copied_branches["{br}"] {op} {val}))')
+            mask = eval(f'np.array((copied_branches["{br}"] {op} {val}))')
+            presel_mask *= mask
 
         presel_mask *= inf_mask
         presel_mask *= nan_mask
-
         mB_branch = copied_branches[branch_dict['candidate']+'_fit_mass']
         mll_branch = copied_branches[branch_dict['candidate']+'_mll_fullfit']
         if args.useBsideBands:
             sidebands = np.array(branch_dict['candidate_mass_sidebands'])
             if sidebands.ndim==1:
-                presel_mask = presel_mask * (mB_branch>sidebands[0]) * (mB_branch<sidebands[1])
+                presel_mask *= np.array((mB_branch>sidebands[0]) * (mB_branch<sidebands[1]))
             else:
                 assert sidebands.ndim==2
-                presel_mask = presel_mask * np.logical_or.reduce([np.logical_and(mB_branch>=start, mB_branch<=end) for start, end in sidebands])
+                presel_mask *= np.logical_or.reduce([np.logical_and(mB_branch>=start, mB_branch<=end) for start, end in sidebands])
         else:
-            presel_mask = presel_mask * ((mB_branch>branch_dict['candidate_mass_range'][0]) * (mB_branch<branch_dict['candidate_mass_range'][1]))
+            presel_mask *= np.array((mB_branch>branch_dict['candidate_mass_range'][0]) * (mB_branch<branch_dict['candidate_mass_range'][1]))
         if args.useLowQ:
-            presel_mask = presel_mask * ((mll_branch>branch_dict['lowq2_region'][0]) * (mll_branch<branch_dict['lowq2_region'][1]))
+            presel_mask *= np.array((mll_branch>branch_dict['lowq2_region'][0]) * (mll_branch<branch_dict['lowq2_region'][1]))
         if args.useHighQ:
-            presel_mask = presel_mask * ((mll_branch>branch_dict['highq2_region'][0]) * (mll_branch<branch_dict['highq2_region'][1]))
+            presel_mask *= np.aarray((mll_branch>branch_dict['highq2_region'][0]) * (mll_branch<branch_dict['highq2_region'][1]))
 
         #eta cuts k, e1,e2
         k_eta_branch = copied_branches[branch_dict['candidate']+'_fit_k_eta']
         l1_eta_branch = copied_branches[branch_dict['candidate']+'_fit_l1_eta']
         l2_eta_branch = copied_branches[branch_dict['candidate']+'_fit_l2_eta']
-        presel_mask = presel_mask * ((k_eta_branch<2.4) * (k_eta_branch>-2.4))
-        presel_mask = presel_mask * ((l2_eta_branch<2.4) * (l2_eta_branch>-2.4) * (l1_eta_branch<2.4) * (l1_eta_branch>-2.4))
+        presel_mask *= np.array((k_eta_branch<2.4) * (k_eta_branch>-2.4))
+        presel_mask *= np.array((l2_eta_branch<2.4) * (l2_eta_branch>-2.4) * (l1_eta_branch<2.4) * (l1_eta_branch>-2.4))
 
         outleps={}
         for br1, br2 in branch_dict['leppairs_branches'].items():
@@ -113,7 +113,8 @@ def preprocess_inputs(runFiles, ipart, args, branch_dict):
         for cut in branch_dict['leppairs_presel']:
             pattern = '|'.join(map(re.escape, ['>', '<', '>=', '<=']))
             br, op, val = [part.strip() for part in re.split(f"({pattern})", cut) if part]
-            presel_mask *= eval(f'np.array((outleps["{br}"] {op} {val}))')
+            mask = eval(f'np.array((outleps["{br}"] {op} {val}))')
+            presel_mask *= mask
 
         output_branches = {**branch_dict['cand_branches'], **branch_dict['scalar_branches']}
         for br, br_name in output_branches.items():
@@ -175,7 +176,7 @@ def main(args):
     args.useLowQ = False
     args.useHighQ = False
     args.useBsideBands = False
-    
+
     # Define type of events
     if args.channel:
         pass
@@ -243,19 +244,20 @@ def main(args):
                     'PV_npvs'    : 'Npv',
                     'event'      : 'idx',
                     'Presel_BDT' : 'presel_bdt',
+                    'trig_wgt'   : 'trig_wgt',
             },
             'presel' : {
-                    # f'{col+"_svprob"} > 0.0001',
+                    f'{col+"_svprob"} > 0.0001',
                     # f'{col+"_fit_cos2D"}   > 0.9',
                     # f'{col+"_fit_pt"}      > 0.0',
                     # f'{col+"_l_xy_sig"}    > 2.0',
-                    # f'{col+"_fit_k_pt"}    > 0.5',
-                    # f'{col+"_mll_fullfit"} > 0.0',
+                    f'{col+"_fit_k_pt"}    > 0.5',
+                    f'{col+"_mll_fullfit"} > 0.0',
                     'Presel_BDT > -3.4',
             },
             'leppairs_presel' : {
-                    # f'{col+"_fit_l1_pt"}  > 2.0',
-                    # f'{col+"_fit_l2_pt"}  > 2.0',
+                    f'{col+"_fit_l1_pt"}  > 1.0',
+                    f'{col+"_fit_l2_pt"}  > 1.0',
                     # f'{col+"_l1_PFMvaID_retrained"} > -1.5',
                     # f'{col+"_l2_PFMvaID_retrained"} > -3.0',
             },

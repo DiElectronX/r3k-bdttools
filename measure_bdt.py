@@ -6,7 +6,7 @@ from xgboost import DMatrix
 from utils import load_dir_args, check_rm_files, edit_filename, load_bdt
 
 
-def evaluate_bdt(bdt, args, bdt_cols, output_dict, selection):
+def evaluate_bdt(bdt, args, bdt_cols, output_dict, selection, score_skim=None):
     isMC = ('MC' in args.measurefile) or args.mc
     out_cols = output_dict['common'] + (output_dict['mc'] if isMC else output_dict['data'])
 
@@ -32,6 +32,11 @@ def evaluate_bdt(bdt, args, bdt_cols, output_dict, selection):
         decisions = np.array(bdt.predict(DMatrix(data)), dtype=np.float64)
 
     out_branches['xgb'] = decisions
+
+    if score_skim:
+        mask = decisions > score_skim
+        for arr in out_branches.values():
+            arr = arr[mask]
 
     with ur.recreate((modelname.split('.')[0] if '.' in modelname else modelname)+'.root') as outfile:
         outfile['mytreefit'] = out_branches
@@ -62,11 +67,12 @@ if __name__ == '__main__':
 
     # preseelction cuts (should already be applied)
     preselection = ''
+    score_skim = None
 
     # output branch files
     output_dict = {
         'common' : ['Bmass', 'Mll', 'Bprob', 'BsLxy', 'Kpt', 'L1pt', 'L2pt', 'Keta', 'L1eta', 'L2eta',
-                    'Bcos', 'LKdz', 'LKdr', 'L1id', 'L2id', 'Kiso', 'L1iso', 'L2iso', 'KLmassD0', 
+                    'Bcos', 'LKdz', 'LKdr', 'L1id', 'L2id', 'Kiso', 'L1iso', 'L2iso', 'KLmassD0',
                     'Passymetry', 'Kip3d', 'Kip3dErr',
                    ],
         'data'   : [],
@@ -84,4 +90,4 @@ if __name__ == '__main__':
     assert os.path.exists(args.measurefile)
 
     # evaluate model
-    evaluate_bdt(bdt, args, features, output_dict, preselection)
+    evaluate_bdt(bdt, args, features, output_dict, preselection, score_skim)
