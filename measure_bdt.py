@@ -2,7 +2,6 @@ import os
 import argparse
 import numpy as np
 import uproot as ur
-from joblib import load
 from xgboost import DMatrix
 from utils import load_dir_args, check_rm_files, edit_filename, load_bdt
 

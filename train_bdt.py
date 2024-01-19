@@ -6,7 +6,7 @@ import uproot as ur
 from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-from sklearn.utils.class_weight import compute_sample_weight
+# from sklearn.utils.class_weight import compute_sample_weight
 from utils import Logger, make_file_name, save_model
 
 
