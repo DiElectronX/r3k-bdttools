@@ -30,7 +30,7 @@ prepare_data_inputs:
     - wget http://www-hep.colorado.edu/~nzipper/cicd_files/test_data_ntuple.root
     - mkdir outputs
   script:
-    - python prepare_data_inputs.py -m split -o ./outputs -i test_data_ntuple.root -l cicd
+    - python prepare_inputs.py -m split -o ./outputs -i test_data_ntuple_flat.root -l cicd -f -c data
   artifacts:
     paths:
       - outputs/
@@ -45,7 +45,7 @@ prepare_mc_inputs:
     - wget http://www-hep.colorado.edu/~nzipper/cicd_files/test_mc_ntuple.root
     - mkdir outputs
   script:
-    - python prepare_mc_inputs.py -m split -o ./outputs -i test_mc_ntuple.root -l cicd
+    - python prepare_inputs.py -m split -o ./outputs -i test_mc_ntuple_flat.root -l cicd -f -c rare
   artifacts:
     paths:
       - outputs/
@@ -57,7 +57,7 @@ train_test:
     - pip install --upgrade pip
     - pip install -r requirements.txt
   script:
-    - python train_bdt.py --modelname cicd_test --sigfile ./outputs/trainSgn_bdt_KEE_PFe_lowQ_cicd.root --bkgfile ./outputs/trainBkg_bdt_sideBands_lowQ_cicd.root --outdir ./outputs --ntree 100 --no_plot
+    - python train_bdt.py --modelname cicd_test --sigfile ./outputs/train_sig_rare_lowQ_cicd.root --bkgfile ./outputs/train_bkg_data_sideBands_lowQ_cicd.root --outdir ./outputs --ntree 100 --no_plot
   artifacts:
     paths:
       - outputs/

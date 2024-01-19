@@ -10,8 +10,8 @@ from utils import preprocess_files
 def preprocess_inputs(runFiles, ipart, args, branch_dict):
     ax_flat = None if args.flat else 1
     if 'train' in args.mode:
+        args.useLowQ = True
         if 'data' in args.channel:
-            args.useLowQ = True
             args.useBsideBands = True
     elif args.mode=='measure':
         args.useLowQ = False
