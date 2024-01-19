@@ -69,7 +69,7 @@ measure_test:
     - pip install --upgrade pip
     - pip install -r requirements.txt
   script:
-    - python measure_bdt.py  --fromdir ./outputs/cicd_test --measurefile ./outputs/measurement_bdt_cicd.root --label cicd_test
+    - python measure_bdt.py  --fromdir ./outputs/cicd_test --measurefile ./outputs/measurement_data_cicd.root --label cicd_test
   artifacts:
     paths:
       - outputs/
