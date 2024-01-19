@@ -3,7 +3,8 @@ import argparse
 import numpy as np
 import uproot as ur
 from joblib import load
-from utils import load_dir_args, check_rm_files, edit_filename
+from xgboost import DMatrix
+from utils import load_dir_args, check_rm_files, edit_filename, load_bdt
 
 
 def evaluate_bdt(bdt, args, bdt_cols, output_dict, selection):
@@ -26,11 +27,14 @@ def evaluate_bdt(bdt, args, bdt_cols, output_dict, selection):
         for k, val in selection.items():
             print(f'  -{k}: {val}')
 
-    decisions = np.array([x[1]
-                         for x in bdt.predict_proba(data)], dtype=np.float64)
+    if ('.pkl' in args.format) or ('.pickle' in args.format):
+        decisions = np.array([x[1] for x in bdt.predict_proba(data)], dtype=np.float64)
+    else:
+        decisions = np.array(bdt.predict(DMatrix(data)), dtype=np.float64)
+
     out_branches['xgb'] = decisions
 
-    with ur.recreate((modelname.split('.pkl')[0] if '.pkl' in modelname else modelname)+'.root') as outfile:
+    with ur.recreate((modelname.split('.')[0] if '.' in modelname else modelname)+'.root') as outfile:
         outfile['mytreefit'] = out_branches
 
 
@@ -46,65 +50,39 @@ if __name__ == '__main__':
                         type=str, choices=['kmumu', 'kee'], help='decay type')
     parser.add_argument('--fromdir', dest='fromdir', default='',
                         type=str, help='load params from designated model directory')
+    parser.add_argument('--log', dest='log', default=None,
+                        type=str, help='logfile to read model parameters from')
     parser.add_argument('--mc', dest='mc', action='store_true',
                         help='flag for specifying MC sample (will already look for "MC" in filename)')
+    parser.add_argument('--format', dest='format', default='.json',
+                        help='format of saved model file')
     args, unknown = parser.parse_known_args()
 
-    # select input variables
-    # 'Slimmed' Inputs
-    # features = ['Bprob','BsLxy','L2iso/L2pt','Kpt/Bmass','Bcos','Kiso/Kpt','LKdz','LKdr','Bpt/Bmass','Passymetry','Kip3d/Kip3dErr']
-    # Otto / 'Run 2' Inputs
-    # Missing: BBDphi, BTrkdxy2
-    features =['Bprob', 'BsLxy', 'L2iso/L2pt', 'Bcos', 'Kiso/Kpt', 'LKdz', 'LKdr', 'Passymetry', 'Kip3d/Kip3dErr', 'L1id', 'L2id']
-
-    # Jay Inputs
-    # Missing: ProbeTracks_DCASig[K], ProbeTracks_dzTrg[K], BToKEE_k_svip2d, BToKEE_l1_dxy_sig, BToKEE_l1_dzTrg, BToKEE_l2_dxy_sig, BToKEE_l2_dzTrg, BToKEE_llkDR
-    # features = ['Biso/Bpt','L1L2dr','Bcos','Kpt/Bmass','L1pt/Bmass','L2pt/Bmass','Bpt/Bmass','Kiso/Kpt','Kip3d','L1iso/L1pt','L1id','L2iso/L2pt','L2id','BsLxy','Passymetry','Bprob']
+    # default input variables
+    features = ['Bprob', 'BsLxy', 'L2iso/L2pt', 'Bcos', 'Kiso/Kpt', 'LKdz', 'LKdr', 'Passymetry', 'Kip3d/Kip3dErr', 'L1id', 'L2id']
 
     # preseelction cuts (should already be applied)
     preselection = ''
 
     # output branch files
     output_dict = {
-    
-        'common' : [
-                'Bmass',
-                'Mll',
-                'Bprob',
-                'BsLxy',
-                # 'Npv',
-                'L1pt',
-                'L2pt',
-                'Kpt',
-                'Bcos',
-                'LKdz',
-                'LKdr',
-                'L2id',
-                'Kiso',
-                'L1id',
-                'L1iso',
-                'KLmassD0',
-                'Passymetry',
-                'Kip3d',
-                'Kip3dErr',
-                'L2iso',
-                'Keta',
-                'L2eta',
-                'L1eta',
-        ],
-        'data' : [],
-        'mc' : [ 'trig_wgt' ],
+        'common' : ['Bmass', 'Mll', 'Bprob', 'BsLxy', 'Kpt', 'L1pt', 'L2pt', 'Keta', 'L1eta', 'L2eta',
+                    'Bcos', 'LKdz', 'LKdr', 'L1id', 'L2id', 'Kiso', 'L1iso', 'L2iso', 'KLmassD0', 
+                    'Passymetry', 'Kip3d', 'Kip3dErr',
+                   ],
+        'data'   : [],
+        'mc'     : ['trig_wgt'],
     }
+
     # load from directory
     if args.fromdir:
         load_dir_args(args)
         features = args.features
 
     # load model
-    args.filepath = args.model if '.pkl' in args.model else args.model+'.pkl'
-    assert os.path.exists(args.filepath)
+    bdt = load_bdt(args)
+
     assert os.path.exists(args.measurefile)
-    bdt = load(args.filepath)
 
     # evaluate model
     evaluate_bdt(bdt, args, features, output_dict, preselection)

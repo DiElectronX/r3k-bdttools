@@ -3,7 +3,8 @@ import logging
 import ast
 import numpy as np
 import multiprocessing as mp
-from joblib import dump
+from xgboost import Booster
+from joblib import dump,load
 from glob import glob
 from pathlib import Path
 
@@ -60,6 +61,16 @@ def save_model(model, args, formats, logger):
         if logger:
             logger.log(f'Saving Model {name}')
 
+def load_bdt(args):
+    args.filepath = args.model if args.format in args.model else args.model+args.format
+    assert os.path.exists(args.filepath)
+
+    if ('pkl' in args.format) or ('pickle' in args.format):
+        return load(args.filepath)
+    else:
+        bdt = Booster()
+        bdt.load_model(args.filepath)
+        return bdt 
 
 def preprocess_files(input_files, nparts, total):
     filelist = [input_files] if input_files.endswith('.root') else glob(input_files+'/**/*.root',recursive=True)[:total]
@@ -74,16 +85,26 @@ def preprocess_files(input_files, nparts, total):
 
 
 def load_dir_args(args):
-    with open(os.path.join(args.fromdir, f'{"log_"+args.label if args.label else "log"}.txt')) as f:
+    if args.log:
+        logname = args.log
+    else:
+        logs = [f for f in os.listdir(args.fromdir) if (('log_' in f) and ('.txt' in f))]
+        if len(logs)==1:
+            logname = logs[0]
+        else:
+            raise KeyError('Multiple viable log files, use "--log" flag to pick one')
+
+    with open(os.path.join(args.fromdir, logname)) as f:
         for line in f:
             if 'Decay: ' in line:
                 args.decay = line.split('Decay: ', 1)[1].strip()
             if 'Inputs: ' in line:
                 args.features = ast.literal_eval(
                     line.split('Inputs: ', 1)[1].strip())
-            if ('Saving Model ' in line) and ('.pkl' in line):
+            if ('Saving Model ' in line) and (args.format in line):
                 args.model = line.split('Saving Model ', 1)[1].strip()
 
+    print(f'Parsing {args.fromdir} Directory')
     print(f'Measuring {args.decay} Decay')
     print(f'Using Model {args.model}')
     print(f'Using Input Vector {args.features}')

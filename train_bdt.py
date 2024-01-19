@@ -18,37 +18,37 @@ def train_bdt(args):
     # read input data
     lgr.log(f'Signal File: {args.sigfile}')
     lgr.log(f'Background File: {args.bkgfile}')
-    with ur.open(args.sigfile) as sigfile, ur.open(args.bkgfile) as bkgfile:
+
+    with ur.open(args.sigfile) as sigfile:
         sig_dict = sigfile['mytree'].arrays(
             args.features, cut=args.preselection if args.preselection else None, entry_stop=args.stop_sig, library='np')
         signal = np.stack(list(sig_dict.values()))
-        
-        mc_weights = sigfile['mytree'].arrays(
+        sig_weights = sigfile['mytree'].arrays(
             [args.sample_weights], cut=args.preselection if args.preselection else None, entry_stop=args.stop_sig, library="np")[args.sample_weights]
 
+    with ur.open(args.bkgfile) as bkgfile:
         bkg_dict = bkgfile['mytree'].arrays(
             args.features, cut=args.preselection if args.preselection else None, entry_stop=args.stop_bkg, library='np')
         backgr = np.stack(list(bkg_dict.values()))
-
-        data_weights = np.ones(backgr.shape[1])
+        bkg_weights = np.ones(backgr.shape[1])
 
     # load model info
     lgr.log(f'Model Name: {args.modelname}')
     lgr.log(f'Decay: {args.decay}')
     lgr.log(f'Inputs: {args.features}')
+
     if args.preselection:
         lgr.log('Preselection Cuts:')
         lgr.log(f'  - {args.preselection}')
-        # for k, val in args.preselection.items():
-        #     lgr.log(f'  -{k}: {val}')
+
     lgr.log('Model Hyperparameters:')
     for arg in list(vars(args))[5:]:
         lgr.log(f'  -{arg}: {getattr(args, arg)}')
 
-    # load input data
+    # format input data
     X = np.transpose(np.concatenate((signal, backgr), axis=1))
     Y = np.concatenate((np.ones(signal.shape[1]), np.zeros(backgr.shape[1])))
-    weights = np.concatenate((mc_weights, data_weights))
+    weights = np.concatenate((sig_weights, bkg_weights))
 
     X_train, X_test, Y_train, Y_test, weights_train, weights_test = train_test_split(
         X, Y, weights, test_size=0.05, random_state=42)
@@ -82,6 +82,7 @@ def train_bdt(args):
     lgr.log(f'Accuracy: {round(acc*100,1)}%')
     results = bdt.evals_result()
 
+    # plot loss curve
     if args.plot:
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots()
