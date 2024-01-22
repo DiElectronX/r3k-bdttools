@@ -4,3 +4,4 @@ uproot
 scikit-learn
 xgboost
 tqdm
+matplotlib
