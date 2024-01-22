@@ -4,10 +4,11 @@ import argparse
 import numpy as np
 import uproot as ur
 from xgboost import XGBClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score
+from sklearn.metrics import accuracy_score, roc_curve, auc, recall_score, precision_score, RocCurveDisplay
+from sklearn.utils import resample
 # from sklearn.utils.class_weight import compute_sample_weight
-from utils import Logger, make_file_name, save_model
+from utils import Logger, make_file_name, save_model, logloss_plot, auc_plot, aucpr_plot, roc_curve, pr_curve
 
 
 def train_bdt(args):
@@ -45,14 +46,15 @@ def train_bdt(args):
     for arg in list(vars(args))[5:]:
         lgr.log(f'  -{arg}: {getattr(args, arg)}')
 
+    # down-sample background events
+    bkg_sig_ratio = 3
+    backgr, bkg_weights = resample(backgr.T, bkg_weights, n_samples=round(bkg_sig_ratio*signal.shape[1]), replace=False, random_state=271996)
+    backgr = backgr.T
+
     # format input data
     X = np.transpose(np.concatenate((signal, backgr), axis=1))
-    Y = np.concatenate((np.ones(signal.shape[1]), np.zeros(backgr.shape[1])))
+    y = np.concatenate((np.ones(signal.shape[1]), np.zeros(backgr.shape[1])))
     weights = np.concatenate((sig_weights, bkg_weights))
-
-    X_train, X_test, Y_train, Y_test, weights_train, weights_test = train_test_split(
-        X, Y, weights, test_size=0.05, random_state=42)
-    eval_set = ((X_train, Y_train), (X_test, Y_test))
 
     # initialize model
     bdt = XGBClassifier(
@@ -64,37 +66,37 @@ def train_bdt(args):
             subsample=args.subsample,
             scale_pos_weight=args.scaleweight,
             objective='binary:'+args.lossfunction,
+            eval_metric=['logloss','error','auc','aucpr','map'],
     )
+
+    # standard training
+    X_train, X_test, y_train, y_test, weights_train, weights_test = train_test_split(
+        X, y, weights, test_size=0.05, random_state=42)
+    eval_set = ((X_train, y_train), (X_test, y_test))
 
     # train model
     start = time.perf_counter()
-    bdt.fit(X_train, Y_train, eval_set=eval_set,
+    bdt.fit(X_train, y_train, eval_set=eval_set,
             sample_weight=weights_train, verbose=2 if args.verbose else 0)
     lgr.log(f'Elapsed Training Time = {round(time.perf_counter() - start)}s')
 
+    # cross-validation metrics
+    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=271996)
+    cv_results = cross_val_score(bdt, X_test, y_test, cv=skf, n_jobs=-1, scoring='accuracy', fit_params={'sample_weight': weights_test},verbose=2 if args.verbose else 0)
     # save model
     save_model(bdt, args, ['.pkl', '.txt', '.text', '.json'], lgr)
 
     # save metrics
-    y_pred = bdt.predict(X_test)
-    predictions = [round(value) for value in y_pred]
-    acc = accuracy_score(Y_test, predictions)
-    lgr.log(f'Accuracy: {round(acc*100,1)}%')
     results = bdt.evals_result()
+    lgr.log(f'Accuracy: {round(cv_results.mean()*100,1)}%')
 
     # plot loss curve
     if args.plot:
-        import matplotlib.pyplot as plt
-        fig, ax = plt.subplots()
-        ax.plot(np.arange(len(results['validation_0']['logloss'])),
-                results['validation_0']['logloss'], label='Train')
-        ax.plot(np.arange(len(results['validation_1']['logloss'])),
-                results['validation_1']['logloss'], label='Test')
-        ax.legend()
-        plt.xlabel('Epoch')
-        plt.ylabel('Log Loss')
-        plt.title('XGBoost Log Loss')
-        plt.savefig(os.path.join(args.outdir, f'logloss_{make_file_name(args)}.png'))
+        logloss_plot(results, args)
+        auc_plot(results, args)
+        aucpr_plot(results, args)
+        roc_curve(bdt, X_test, y_test, weights_test, args, skf)
+        pr_curve(bdt, X_test, y_test, weights_test, args, skf)
 
 
 if __name__ == '__main__':

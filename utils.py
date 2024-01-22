@@ -3,10 +3,12 @@ import logging
 import ast
 import numpy as np
 import multiprocessing as mp
+import matplotlib.pyplot as plt
 from xgboost import Booster
 from joblib import dump,load
 from glob import glob
 from pathlib import Path
+from sklearn.metrics import auc, RocCurveDisplay, PrecisionRecallDisplay
 
 
 class Logger():
@@ -101,7 +103,7 @@ def load_dir_args(args):
             if 'Inputs: ' in line:
                 args.features = ast.literal_eval(
                     line.split('Inputs: ', 1)[1].strip())
-            if ('Saving Model ' in line) and (args.format in line):
+            if ('Saving Model' in line) and (args.format in line):
                 args.model = line.split('Saving Model ', 1)[1].strip()
 
     print(f'Parsing {args.fromdir} Directory')
@@ -120,3 +122,152 @@ def edit_filename(path, prefix='', suffix=''):
     path = Path(path)
     return os.path.join(str(path.parent), (prefix+'_' if prefix else '') + str(path.stem) + ('_'+suffix if suffix else '') + str(path.suffix))
 
+def logloss_plot(results, args):
+    fig, ax = plt.subplots()
+    train_logloss = results['validation_0']['logloss']
+    test_logloss  = results['validation_1']['logloss']
+    ax.plot(np.arange(len(train_logloss)), train_logloss, label='Train')
+    ax.plot(np.arange(len(test_logloss)), test_logloss, label='Test')
+    ax.legend()
+    plt.xlabel('Epoch')
+    plt.ylabel('Log Loss')
+    plt.title('Log Loss Curve')
+    plt.savefig(os.path.join(args.outdir, f'logloss_{make_file_name(args)}.png'))
+
+def auc_plot(results, args):
+    fig, ax = plt.subplots()
+    train_logloss = results['validation_0']['auc']
+    test_logloss  = results['validation_1']['auc']
+    ax.plot(np.arange(len(train_logloss)), train_logloss, label='Train')
+    ax.plot(np.arange(len(test_logloss)), test_logloss, label='Test')
+    ax.legend()
+    plt.xlabel('Epoch')
+    plt.ylabel('ROC AUC')
+    plt.title('ROC AUC Curve')
+    plt.savefig(os.path.join(args.outdir, f'auc_{make_file_name(args)}.png'))
+    
+def aucpr_plot(results, args):
+    fig, ax = plt.subplots()
+    train_logloss = results['validation_0']['aucpr']
+    test_logloss  = results['validation_1']['aucpr']
+    ax.plot(np.arange(len(train_logloss)), train_logloss, label='Train')
+    ax.plot(np.arange(len(test_logloss)), test_logloss, label='Test')
+    ax.legend()
+    plt.xlabel('Epoch')
+    plt.ylabel('PR AUC')
+    plt.title('Precision-Recall AUC Curve')
+    plt.savefig(os.path.join(args.outdir, f'aucpr_{make_file_name(args)}.png'))
+
+def roc_curve(model, X, y, weights, args, cv):
+    tprs = []
+    aucs = []
+    mean_fpr = np.linspace(0, 1, 100)
+
+    fig, ax = plt.subplots(figsize=(6, 6))
+    for fold, (train, test) in enumerate(cv.split(X, y)):
+        model.fit(X[train], y[train], sample_weight=weights[train])
+        viz = RocCurveDisplay.from_estimator(
+            model,
+            X[test],
+            y[test],
+            name=f'ROC fold {fold}',
+            alpha=0.3,
+            lw=1,
+            ax=ax,
+            plot_chance_level=(fold == cv.get_n_splits() - 1),
+        )
+        interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)
+        interp_tpr[0] = 0.0
+        tprs.append(interp_tpr)
+        aucs.append(viz.roc_auc)
+
+    mean_tpr = np.mean(tprs, axis=0)
+    mean_tpr[-1] = 1.0
+    mean_auc = auc(mean_fpr, mean_tpr)
+    std_auc = np.std(aucs)
+    ax.plot(
+        mean_fpr,
+        mean_tpr,
+        color='b',
+        label=r'Mean ROC (AUC = %0.2f $\pm$ %0.2f)' % (mean_auc, std_auc),
+        lw=2,
+        alpha=0.8,
+    )
+
+    std_tpr = np.std(tprs, axis=0)
+    tprs_upper = np.minimum(mean_tpr + std_tpr, 1)
+    tprs_lower = np.maximum(mean_tpr - std_tpr, 0)
+    ax.fill_between(
+        mean_fpr,
+        tprs_lower,
+        tprs_upper,
+        color='grey',
+        alpha=0.2,
+        label=r'$\pm$ 1 std. dev.',
+    )
+
+    ax.set(
+        xlabel='False Positive Rate',
+        ylabel='True Positive Rate',
+        title=f'Mean ROC curve with variability\n(Positive label "Signal")',
+    )
+    ax.legend(loc='lower right')
+    plt.savefig(os.path.join(args.outdir, f'roc_{make_file_name(args)}.png'))
+
+def pr_curve(model, X, y, weights, args, cv):
+    precisions = []
+    aucs = []
+    mean_recall = np.linspace(0, 1, 100)
+
+    fig, ax = plt.subplots(figsize=(6, 6))
+    for fold, (train, test) in enumerate(cv.split(X, y)):
+        model.fit(X[train], y[train], sample_weight=weights[train])
+
+        viz = PrecisionRecallDisplay.from_estimator(
+            model,
+            X[test],
+            y[test],
+            name=f'PR fold {fold}',
+            alpha=0.3,
+            lw=1,
+            ax=ax,
+            plot_chance_level=(fold == cv.get_n_splits() - 1),
+        )
+
+        interp_precision = np.interp(mean_recall, viz.recall[::-1], viz.precision[::-1])
+        interp_precision[0] = 1.0
+        precisions.append(interp_precision)
+        aucs.append(auc(viz.recall, viz.precision))
+
+    mean_precision = np.mean(precisions, axis=0)
+    # mean_precision[-1] = 0.0
+    mean_auc = auc(mean_recall, mean_precision)
+    std_auc = np.std(aucs)
+    ax.plot(
+        mean_recall,
+        mean_precision,
+        color='b',
+        label=r'Mean PR (AUC = %0.2f $\pm$ %0.2f)' % (mean_auc, std_auc),
+        lw=2,
+        alpha=0.8,
+    )
+
+    std_precision = np.std(precisions, axis=0)
+    precisions_upper = np.minimum(mean_precision + std_precision, 1)
+    precisions_lower = np.maximum(mean_precision - std_precision, 0)
+    ax.fill_between(
+        mean_recall,
+        precisions_lower,
+        precisions_upper,
+        color='grey',
+        alpha=0.2,
+        label=r'$\pm$ 1 std. dev.',
+    )
+
+    ax.set(
+        xlabel='Recall',
+        ylabel='Precision',
+        title=f'Mean PR curve with variability\n(Positive label "Signal")',
+    )
+    ax.legend(loc='center left')
+    plt.savefig(os.path.join(args.outdir, f'pr_{make_file_name(args)}.png'))
