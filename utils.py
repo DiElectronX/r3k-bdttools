@@ -29,10 +29,13 @@ class Logger():
 
 
 def make_file_name(args):
+    stop_sig = args.stop_sig if hasattr(args,'stop_sig') else None
+    stop_bkg = args.stop_bkg if hasattr(args,'stop_bkg') else None
+
     name_blocks = [
         args.modelname,
-        'Nsig'+str(args.stop_sig)+'_Nbkg' +
-        str(args.stop_bkg) if (args.stop_sig or args.stop_bkg) else '',
+        'Nsig'+str(stop_sig)+'_Nbkg' +
+        str(args.stop_bkg) if (stop_sig or stop_bkg) else '',
         args.label,
     ]
     return '_'.join(filter(None, name_blocks))
@@ -87,10 +90,11 @@ def preprocess_files(input_files, nparts, total):
 
 
 def load_dir_args(args):
-    if args.log:
+    if hasattr(args,'log'):
         logname = args.log
     else:
         logs = [f for f in os.listdir(args.fromdir) if (('log_' in f) and ('.txt' in f))]
+        logs = [logfile for logfile in logs if '_xval.' not in logfile]
         if len(logs)==1:
             logname = logs[0]
         else:
