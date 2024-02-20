@@ -3,6 +3,7 @@ import time
 import argparse
 import numpy as np
 import uproot as ur
+import matplotlib.pyplot as plt
 from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score
 from sklearn.metrics import accuracy_score, roc_curve, auc, recall_score, precision_score, RocCurveDisplay
@@ -25,7 +26,7 @@ def xval_bdt(args):
     lgr.log(f'Signal File: {args.mcfile}')
     lgr.log(f'Background File: {args.datafile}')
     lgr.log(f'Model Name: {args.modelname}')
-    lgr.log(f'Decay: {args.decay}')
+    # lgr.log(f'Decay: {args.decay}')
     lgr.log(f'Inputs: {args.features}')
     
     if args.preselection:
@@ -64,15 +65,25 @@ def xval_bdt(args):
 
     # format input data
     model = XGBClassifier(
-            max_depth=3,
-            n_estimators=10,
+            max_depth=6,
+            n_estimators=150,
+            learning_rate=0.1,
             objective='binary:logitraw',
             eval_metric=['logloss'],
+            min_child_weight=1.,
+            gamma=3.,
+            subsample=1.,
+            scale_pos_weight=1.,
+            n_jobs=8,
     )
     # model = args.bdt
     
     # set K-fold validation scheme for retraining model
-    skf = StratifiedKFold(n_splits=2)
+    skf = StratifiedKFold(n_splits=3)
+    tprs = []
+    aucs = []
+    mean_fpr = np.linspace(0, 1, 100)
+    fig, ax = plt.subplots(figsize=(6, 6))
 
     # split 2022 data into K folds for trainig/validation/measuring data
     event_idxs = np.array([], dtype=np.int64)
@@ -100,10 +111,58 @@ def xval_bdt(args):
         scores = np.append(scores, np.array([x[1] for x in model.predict_proba(X_data[test_data])], dtype=np.float64))
         event_idxs = np.append(event_idxs, np.array(test_data, dtype=np.int64))
 
+        viz = RocCurveDisplay.from_estimator(
+            model,
+            X_val,
+            y_val,
+            name=f'ROC fold {fold}',
+            alpha=0.3,
+            lw=1,
+            ax=ax,
+            plot_chance_level=(fold == skf.get_n_splits() - 1),
+        )
+        interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)
+        interp_tpr[0] = 0.0
+        tprs.append(interp_tpr)
+        aucs.append(viz.roc_auc)
+
         if args.verbose:
-            print(f'Finished fold {fold}')
+            print(f'Finished fold {fold+1} of {skf.get_n_splits()}')
     if args.verbose:
         print(f'Elapsed Training/Inference Time = {round(time.perf_counter() - start)}s')
+
+    mean_tpr = np.mean(tprs, axis=0)
+    mean_tpr[-1] = 1.0
+    mean_auc = auc(mean_fpr, mean_tpr)
+    std_auc = np.std(aucs)
+    ax.plot(
+        mean_fpr,
+        mean_tpr,
+        color='b',
+        label=r'Mean ROC (AUC = %0.2f $\pm$ %0.2f)' % (mean_auc, std_auc),
+        lw=2,
+        alpha=0.8,
+    )
+
+    std_tpr = np.std(tprs, axis=0)
+    tprs_upper = np.minimum(mean_tpr + std_tpr, 1)
+    tprs_lower = np.maximum(mean_tpr - std_tpr, 0)
+    ax.fill_between(
+        mean_fpr,
+        tprs_lower,
+        tprs_upper,
+        color='grey',
+        alpha=0.2,
+        label=r'$\pm$ 1 std. dev.',
+    )
+
+    ax.set(
+        xlabel='False Positive Rate',
+        ylabel='True Positive Rate',
+        title=f'Mean ROC curve with variability\n(Positive label "Signal")',
+    )
+    ax.legend(loc='lower right')
+    plt.savefig(os.path.join(args.outdir, f'roc_{make_file_name(args)}_xval.png'))
 
     modelname = edit_filename(
         args.filepath, prefix='measurement', suffix=args.label)
@@ -119,6 +178,7 @@ def xval_bdt(args):
             arr = arr[event_idxs]
 
         output_branches_data['xgb'] = scores
+        output_branches_data['trigger_OR'] = np.ones_like(scores)
 
         measurement_data_filename = (modelname.split('.')[0] if '.' in modelname else modelname)+'_xval.root'
         with ur.recreate(measurement_data_filename, compression=ur.LZMA(9)) as outfile:
@@ -157,7 +217,7 @@ def xval_bdt(args):
         event_idxs = np.append(event_idxs, np.array(test_mc, dtype=np.int64))
 
         if args.verbose:
-            print(f'Finished fold {fold}')
+            print(f'Finished fold {fold+1} of {skf.get_n_splits()}')
     if args.verbose:
         print(f'Elapsed Training/Inference Time = {round(time.perf_counter() - start)}s')
 
@@ -175,6 +235,8 @@ def xval_bdt(args):
             arr = arr[event_idxs]
 
         output_branches_mc['xgb'] = scores
+        output_branches_mc['trigger_OR'] = np.ones_like(scores)
+
 
         measurement_mc_filename = (modelname.split('.')[0] if '.' in modelname else modelname)+'_xval.root'
         with ur.recreate(measurement_mc_filename, compression=ur.LZMA(9)) as outfile:
@@ -199,21 +261,51 @@ def xval_bdt(args):
                 branchlist_jpsi, cut=args.preselection if args.preselection else None, library=BACKEND)
 
             output_branches_jpsi['xgb'] = scores
+            output_branches_jpsi['trigger_OR'] = np.ones_like(scores)
 
             measurement_mc_filename = (modelname.split('.')[0] if '.' in modelname else modelname)+'_xval.root'
             with ur.recreate(measurement_mc_filename, compression=ur.LZMA(9)) as outfile:
                 outfile['mytreefit'] = output_branches_jpsi
         lgr.log(f'MC (JPsi) Measurement File: {measurement_mc_filename}')
 
+    if args.psi2sfile:
+        scores = np.array([], dtype=np.float64)
+        modelname = edit_filename(
+            args.filepath, prefix='measurement', suffix=args.label+'psi2s')
+        check_rm_files([modelname, modelname.replace(args.format, '.root')])
+        with ur.open(args.psi2sfile) as psi2sfile:
+            features_psi2s = psi2sfile[NTUPLE_TREE].arrays(
+                args.features, cut=args.preselection if args.preselection else None, library=BACKEND)
+            X_psi2s = np.stack(list(features_psi2s.values())).T
+            
+            scores = np.append(scores, np.array([x[1] for x in model.predict_proba(X_psi2s)], dtype=np.float64))
+
+            branchlist_psi2s = list(set(args.output_branches['common']) | set(args.output_branches['mc']))
+
+            output_branches_psi2s = psi2sfile[NTUPLE_TREE].arrays(
+                branchlist_psi2s, cut=args.preselection if args.preselection else None, library=BACKEND)
+
+            output_branches_psi2s['xgb'] = scores
+            output_branches_psi2s['trigger_OR'] = np.ones_like(scores)
+
+            measurement_mc_filename = (modelname.split('.')[0] if '.' in modelname else modelname)+'_xval.root'
+            with ur.recreate(measurement_mc_filename, compression=ur.LZMA(9)) as outfile:
+                outfile['mytreefit'] = output_branches_psi2s
+        lgr.log(f'MC (Psi2s) Measurement File: {measurement_mc_filename}')
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--modelname', dest='modelname',
                         default='xgbmodel', type=str, help='model name')
+    parser.add_argument('--outdir', dest='outdir',
+                        default=None, type=str, help='output directory')
     parser.add_argument('--mcfile', dest='mcfile', type=str,
                         required=True,  help='file with signal examples')
     parser.add_argument('--jpsifile', dest='jpsifile', type=str,
                         help='file for additional jpsi measurement')
+    parser.add_argument('--psi2sfile', dest='psi2sfile', type=str,
+                        help='file for additional psi2s measurement')
     parser.add_argument('--datafile', dest='datafile', type=str,
                         required=True, help='file with background examples')
     parser.add_argument('--fromdir', dest='fromdir', default=None,
@@ -236,13 +328,14 @@ if __name__ == '__main__':
         load_dir_args(args)
 
     # load model
-    args.bdt = load_bdt(args)
+    # args.bdt = load_bdt(args)
+    args.filepath = os.path.join(args.outdir,args.modelname,args.modelname+'_'+args.label+'.root')
 
     # Select Input Variables
     args.sample_weights = 'trig_wgt'
 
     args.output_branches = {
-        'common' : ['Bmass', 'Mll'],
+        'common' : ['event', 'luminosityBlock', 'Bmass', 'Mll'],
         'data'   : [],
         'mc'     : ['trig_wgt'],
     }
