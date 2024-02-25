@@ -1,8 +1,7 @@
 stages:
   - codechecks
   - prepare_inputs
-  - train
-  - measure
+  - inference
 
 mypy_typecheck:
   stage: codechecks
@@ -50,26 +49,14 @@ prepare_mc_inputs:
     paths:
       - outputs/
 
-train_test:
-  stage: train
+inference_test:
+  stage: inference
   image: python:3.8-slim-bullseye
   before_script:
     - pip install --upgrade pip
     - pip install -r requirements.txt
   script:
-    - python train_bdt.py --modelname cicd_test --sigfile ./outputs/train_sig_rare_lowQ_cicd.root --bkgfile ./outputs/train_bkg_data_sideBands_lowQ_cicd.root --outdir ./outputs --ntree 100 --no_plot
-  artifacts:
-    paths:
-      - outputs/
-
-measure_test:
-  stage: measure
-  image: python:3.8-slim-bullseye
-  before_script:
-    - pip install --upgrade pip
-    - pip install -r requirements.txt
-  script:
-    - python measure_bdt.py  --fromdir ./outputs/cicd_test --measurefile ./outputs/measurement_data_cicd.root --label cicd_test
+    - python bdt_inference-c bdt_cfg.yml -v
   artifacts:
     paths:
       - outputs/
