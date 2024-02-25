@@ -7,21 +7,13 @@
 You  can set up a computing environment with the necessary Python libraries using a Conda virtual environment `conda env create -f environment.yml`, or if you have a working python distribution, using pip `pip install --upgrade pip && pip install -r requirements.txt`.
 
 ## Running the scripts
-Preprocessing assumes inout files are formatted according to [Run 3 CMGTools repo](https://github.com/DiElectronX/cmgtools-lite).
 
 ### Preparing Data Inputs
-    python prepare_data_inputs.py -m split -j 10 -i <input dir> -o <output dir>
+    python prepare_inputs.py -m measure -j 10 -i <input dir> -o <output dir> -c data
 ### Preparing MC Inputs
-    python prepare_mc_inputs.py -m split -i <input dir> -o <output dir>
+    python prepare_inputs.py -m measure -j 1 -i <input dir> -o <output dir> -c rare
 
-### Training Model
-    python train_bdt.py --modelname <output dir and model name> --sigfile <signal file> --bkgfile <background file>
-### Adding Scores to Measurement File
+Same fore "rare", "jpsi", and "psi2s"
 
-Manually choose options for how to make measurement:
-
-    python measure_bdt.py --model <model pickle file> --measurefile <measurement file>
-
-Use params from directory log file:
-
-    python measure_bdt.py --fromdir <training output dir> --measurefile <measurement file>
+### BDT inference
+    python bdt_inference.py -c bdt_cfg.yml [-v for verbose] 
