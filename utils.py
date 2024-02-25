@@ -1,16 +1,16 @@
 import os
 import sys
 import logging
-import ast
 import importlib.util
 import numpy as np
 import multiprocessing as mp
+import matplotlib.pyplot as plt
+import uproot as ur
 from xgboost import Booster
 from joblib import dump,load
 from glob import glob
 from pathlib import Path
-from sklearn.metrics import auc, RocCurveDisplay, PrecisionRecallDisplay
-
+from sklearn.metrics import auc, RocCurveDisplay
 from logging import DEBUG, INFO, WARNING, ERROR
 
 BACKEND = 'np'
@@ -112,7 +112,7 @@ class ROCPlotterKFold():
         self.ax.set(
             xlabel='False Positive Rate',
             ylabel='True Positive Rate',
-            title=f'Mean ROC curve with variability\n(Positive label "Signal")',
+            title='Mean ROC curve with variability\n(Positive label "Signal")',
         )
         self.ax.legend(loc='lower right')
     
@@ -142,6 +142,7 @@ def read_bdt_arrays(file, tree, features, weights_branch=None, preselection=None
 
     return features_array, cutvars_dict, weights_array
 
+
 def save_bdt_arrays(input_file, input_tree, output_file, output_tree, output_branch_names, score_branch, scores, idxs=None, preselection=None, n_evts=None):    
     with ur.open(input_file) as f_in:
         output_branches = f_in[input_tree].arrays(output_branch_names, cut=preselection, entry_stop=n_evts, library=BACKEND)
@@ -169,22 +170,7 @@ def load_external_model(filepath, model_name='model'):
     return model
 
 
-def make_file_name(args):
-    stop_sig = args.stop_sig if hasattr(args,'stop_sig') else None
-    stop_bkg = args.stop_bkg if hasattr(args,'stop_bkg') else None
-
-    name_blocks = [
-        args.modelname,
-        'Nsig'+str(stop_sig)+'_Nbkg' +
-        str(args.stop_bkg) if (stop_sig or stop_bkg) else '',
-        args.label,
-    ]
-    return '_'.join(filter(None, name_blocks))
-
-
-def save_model(model, args, formats, logger):
-    output_name = make_file_name(args)
-
+def save_model(output_name, model, args, formats, logger):
     if '.pkl' in formats:
         name = os.path.join(args.outdir, output_name+'.pkl')
         dump(model, name)
@@ -207,6 +193,7 @@ def save_model(model, args, formats, logger):
         if logger:
             logger.log(f'Saving Model {name}')
 
+
 def load_bdt(args):
     args.filepath = args.model if args.format in args.model else args.model+args.format
     assert os.path.exists(args.filepath)
@@ -218,6 +205,7 @@ def load_bdt(args):
         bdt.load_model(args.filepath)
         return bdt 
 
+
 def preprocess_files(input_files, nparts, total):
     filelist = [input_files] if input_files.endswith('.root') else glob(input_files+'/**/*.root',recursive=True)[:total]
     if nparts==1:
@@ -228,33 +216,6 @@ def preprocess_files(input_files, nparts, total):
     if not outfiles: 
         raise ValueError('Invalid input path/file')
     return outfiles
-
-
-def load_dir_args(args):
-    if hasattr(args,'log'):
-        logname = args.log
-    else:
-        logs = [f for f in os.listdir(args.fromdir) if (('log_' in f) and ('.txt' in f))]
-        logs = [logfile for logfile in logs if '_xval.' not in logfile]
-        if len(logs)==1:
-            logname = logs[0]
-        else:
-            raise KeyError('Multiple viable log files, use "--log" flag to pick one')
-
-    with open(os.path.join(args.fromdir, logname)) as f:
-        for line in f:
-            if 'Decay: ' in line:
-                args.decay = line.split('Decay: ', 1)[1].strip()
-            if 'Inputs: ' in line:
-                args.features = ast.literal_eval(
-                    line.split('Inputs: ', 1)[1].strip())
-            if ('Saving Model' in line) and (args.format in line):
-                args.model = line.split('Saving Model ', 1)[1].strip()
-
-    print(f'Parsing {args.fromdir} Directory')
-    print(f'Measuring {args.decay} Decay')
-    print(f'Using Model {args.model}')
-    print(f'Using Input Vector {args.features}')
 
 
 def check_rm_files(files=[]):

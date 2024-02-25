@@ -3,13 +3,9 @@ import time
 import argparse
 import yaml
 import numpy as np
-import uproot as ur
-import matplotlib.pyplot as plt
-from xgboost import XGBClassifier
-from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score
-from sklearn.utils import resample
+from sklearn.model_selection import train_test_split, StratifiedKFold
 from logging import DEBUG, INFO, WARNING, ERROR
-from utils import *
+from utils import R3KLogger, ROCPlotterKFold, read_bdt_arrays, save_bdt_arrays, load_external_model, edit_filename
 
 
 def bdt_inference(dataset_params, model_params, output_params, args):
@@ -145,7 +141,6 @@ def bdt_inference(dataset_params, model_params, output_params, args):
 
     # TODO down-sample background events
     downsample = False
-    bkg_sig_ratio = 3
     if downsample:
         pass
 
