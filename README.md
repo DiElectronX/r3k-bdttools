@@ -13,4 +13,4 @@ You  can set up a computing environment with the necessary Python libraries usin
 Same fore "rare", "jpsi", and "psi2s"
 
 ### BDT inference
-    python bdt_inference.py -c bdt_cfg.yml [-v for verbose] 
+    python bdt_inference.py -c bdt_cfg.yml [-v for verbose] [--debug for debug mode]
