@@ -158,7 +158,7 @@ def save_bdt_arrays(input_file, input_tree, output_file, output_tree, output_bra
             f_out[output_tree] = output_branches
 
 
-def load_external_model(filepath, model_name='model'):
+def load_external_model(filepath, debug=False, model_name='model'):
     spec = importlib.util.spec_from_file_location('tmp_module', filepath)
     source_module = importlib.util.module_from_spec(spec)
     sys.modules['tmp_module'] = source_module
@@ -167,7 +167,18 @@ def load_external_model(filepath, model_name='model'):
 
     assert callable(getattr(model, 'fit')) and callable(getattr(model, 'predict_proba'))
 
+    if debug:
+        model.set_params(**{'n_estimators' : 5})
+
     return model
+
+def get_branches(output_params, branch_names):
+    output_branches = []
+    for key in branch_names:
+        if output_params.output_branches[key] is not None:
+            output_branches.extend(output_params.output_branches[key])
+    
+    return output_branches
 
 
 def save_model(output_name, model, args, formats, logger):

@@ -5,11 +5,12 @@ import yaml
 import numpy as np
 from sklearn.model_selection import train_test_split, StratifiedKFold
 from logging import DEBUG, INFO, WARNING, ERROR
-from utils import R3KLogger, ROCPlotterKFold, read_bdt_arrays, save_bdt_arrays, load_external_model, edit_filename
+from utils import R3KLogger, ROCPlotterKFold, read_bdt_arrays, save_bdt_arrays, load_external_model, edit_filename, get_branches
 
 
 def bdt_inference(dataset_params, model_params, output_params, args):
-    debug_n_evts = None
+    debug_n_evts = 10000 if args.debug else None
+    args.verbose = True if args.debug else False
 
     # configuration for outputs & logging
     os.makedirs(output_params.output_dir, exist_ok=True)
@@ -70,7 +71,7 @@ def bdt_inference(dataset_params, model_params, output_params, args):
     mask_bkg = np.logical_and(mask_bkg_lowq2, mask_bkg_sideband)
 
     # load bdt from template file
-    model = load_external_model(model_params.template_file)
+    model = load_external_model(model_params.template_file, debug=args.debug)
     
     # set K-fold validation scheme for retraining model
     skf = StratifiedKFold(n_splits=3)
@@ -124,7 +125,7 @@ def bdt_inference(dataset_params, model_params, output_params, args):
 
     # save data measurement file
     output_filename = edit_filename(base_filename, suffix='data')
-    output_branch_names = output_params.output_branches['common'] + output_params.output_branches['common']
+    output_branch_names = get_branches(output_params, ['common','data'])
     save_bdt_arrays(
         dataset_params.data_file, 
         dataset_params.tree_name, 
@@ -138,6 +139,39 @@ def bdt_inference(dataset_params, model_params, output_params, args):
         n_evts=debug_n_evts,
     )
     lgr.log(f'Data Measurement File: {output_filename}')
+
+    # predict bdt scores for other data files in config
+    if dataset_params.other_data_files:
+        for data_name, data_file in dataset_params.other_data_files.items():
+            # load arrays from input file
+            X_data_extra, _, _ = read_bdt_arrays(
+                data_file, 
+                dataset_params.tree_name, 
+                model_params.features, 
+                None, 
+                model_params.preselection, 
+                (dataset_params.b_mass_branch, dataset_params.ll_mass_branch),
+                n_evts=debug_n_evts,
+            )
+
+            # bdt inference
+            scores = np.array([x[1] for x in model.predict_proba(X_data_extra)], dtype=np.float64)
+
+            # save jpsi mc measurement file
+            output_filename = edit_filename(base_filename, suffix=data_name)
+            output_branch_names = get_branches(output_params, ['common','data'])
+            save_bdt_arrays(
+                data_file, 
+                dataset_params.tree_name, 
+                output_filename, 
+                dataset_params.tree_name, 
+                output_branch_names, 
+                output_params.score_branch, 
+                scores, 
+                preselection=model_params.preselection, 
+                n_evts=debug_n_evts,
+            )
+            lgr.log(f'Data ({data_name}) Measurement File: {output_filename}')
 
     # TODO down-sample background events
     downsample = False
@@ -180,7 +214,7 @@ def bdt_inference(dataset_params, model_params, output_params, args):
     
     # save rare mc measurement file
     output_filename = edit_filename(base_filename, suffix='rare')
-    output_branch_names = output_params.output_branches['common'] + output_params.output_branches['mc']
+    output_branch_names = get_branches(output_params, ['common','mc'])
     save_bdt_arrays(
         dataset_params.rare_file, 
         dataset_params.tree_name, 
@@ -195,69 +229,38 @@ def bdt_inference(dataset_params, model_params, output_params, args):
     )
     lgr.log(f'MC (Rare) Measurement File: {output_filename}')
 
-    if dataset_params.jpsi_file:
-        # load data & mc arrays from input files
-        X_jpsi, cutvars_mc, weights_mc = read_bdt_arrays(
-            dataset_params.jpsi_file, 
-            dataset_params.tree_name, 
-            model_params.features, 
-            model_params.sample_weights, 
-            model_params.preselection, 
-            (dataset_params.b_mass_branch, dataset_params.ll_mass_branch),
-            n_evts=debug_n_evts,
-        )
+    # predict bdt scores for other data files in config
+    if dataset_params.other_mc_files:
+        for mc_name, mc_file in dataset_params.other_mc_files.items():        # load data & mc arrays from input files
+            X_mc_extra, _, _ = read_bdt_arrays(
+                mc_file, 
+                dataset_params.tree_name, 
+                model_params.features, 
+                model_params.sample_weights, 
+                model_params.preselection, 
+                (dataset_params.b_mass_branch, dataset_params.ll_mass_branch),
+                n_evts=debug_n_evts,
+            )
 
-        # bdt inference
-        scores = np.array([x[1] for x in model.predict_proba(X_jpsi)], dtype=np.float64)
+            # bdt inference
+            scores = np.array([x[1] for x in model.predict_proba(X_mc_extra)], dtype=np.float64)
 
-        # save jpsi mc measurement file
-        output_filename = edit_filename(base_filename, suffix='jpsi')
-        output_branch_names = output_params.output_branches['common'] + output_params.output_branches['mc']
-        save_bdt_arrays(
-            dataset_params.jpsi_file, 
-            dataset_params.tree_name, 
-            output_filename, 
-            dataset_params.tree_name, 
-            output_branch_names, 
-            output_params.score_branch, 
-            scores, 
-            None, 
-            preselection=model_params.preselection, 
-            n_evts=debug_n_evts,
-        )
-        lgr.log(f'MC (JPsi) Measurement File: {output_filename}')
+            # save jpsi mc measurement file
+            output_filename = edit_filename(base_filename, suffix=mc_name)
+            output_branch_names = get_branches(output_params, ['common','mc'])
+            save_bdt_arrays(
+                mc_file, 
+                dataset_params.tree_name, 
+                output_filename, 
+                dataset_params.tree_name, 
+                output_branch_names, 
+                output_params.score_branch, 
+                scores, 
+                preselection=model_params.preselection, 
+                n_evts=debug_n_evts,
+            )
+            lgr.log(f'MC ({mc_name}) Measurement File: {output_filename}')
  
-    if dataset_params.psi2s_file:
-        # load data & mc arrays from input files
-        X_psi2s, cutvars_mc, weights_mc = read_bdt_arrays(
-            dataset_params.psi2s_file, 
-            dataset_params.tree_name, 
-            model_params.features, 
-            model_params.sample_weights, 
-            model_params.preselection, 
-            (dataset_params.b_mass_branch, dataset_params.ll_mass_branch),
-            n_evts=debug_n_evts,
-        )
-
-        # bdt inference
-        scores = np.array([x[1] for x in model.predict_proba(X_psi2s)], dtype=np.float64)
-
-        # save psi2s mc measurement file
-        output_filename = edit_filename(base_filename, suffix='psi2s')
-        output_branch_names = output_params.output_branches['common'] + output_params.output_branches['mc']
-        save_bdt_arrays(
-            dataset_params.psi2s_file, 
-            dataset_params.tree_name, 
-            output_filename, 
-            dataset_params.tree_name, 
-            output_branch_names, 
-            output_params.score_branch, 
-            scores, 
-            None, 
-            preselection=model_params.preselection, 
-            n_evts=debug_n_evts,
-        )
-        lgr.log(f'MC (Psi2S) Measurement File: {output_filename}')
 
 def main(args):
     with open(args.config, 'r') as f:
@@ -274,6 +277,7 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--config', dest='config', type=str, required=True, help='BDT configuration file (.yml)')
     parser.add_argument('-np', '--no_plot', dest='plot', action='store_false', help='dont add loss plot to output directory')
     parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', help='print parameters and training progress to stdout')
+    parser.add_argument('--debug', dest='debug', action='store_true', help='debug mode: run in verbose mode with scaled-down model & datasets')
     args, _ = parser.parse_known_args()
 
     main(args)
