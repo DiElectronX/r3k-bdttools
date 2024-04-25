@@ -6,6 +6,7 @@ datasets:
   other_mc_files: 
     jpsi: /Users/noahzipper/Desktop/Research/Rk/BDT_Studies/RootFiles/xval_jpsi_v2.root
     psi2s: /Users/noahzipper/Desktop/Research/Rk/BDT_Studies/RootFiles/xval_psi2s_v2.root
+    bu_kstar_jpsi_pion: /Users/noahzipper/Desktop/Research/Rk/BDT_Studies/RootFiles/xval_bu_kstar_jpsi_pion_v2.root
   tree_name: mytree
   b_mass_branch: Bmass
   ll_mass_branch: Mll

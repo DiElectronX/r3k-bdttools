@@ -83,7 +83,7 @@ class ROCPlotterKFold():
         self.tprs.append(_interp_tpr)
         self.aucs.append(_viz.roc_auc)
 
-    def save(self, path, show=False, zoom=False):
+    def save(self, path, show=False, logy=False, zoom=False):
         mean_tpr = np.mean(self.tprs, axis=0)
         mean_tpr[-1] = 1.0
         mean_auc = auc(self.mean_fpr, mean_tpr)
@@ -112,15 +112,19 @@ class ROCPlotterKFold():
         self.ax.set(
             xlabel='False Positive Rate',
             ylabel='True Positive Rate',
-            title='Mean ROC curve with variability\n(Positive label "Signal")',
+            title='Mean ROC curve with variability',
         )
         self.ax.legend(loc='lower right')
     
         if zoom:
-            self.ax.set_xlim([0.,1.])
-            # self.ax.set_xscale('log')
-            self.ax.set_ylim([.9,1.05])
-            # self.ax.set_xscale('log')
+            self.ax.set_xlim([.001,1.01])
+            self.ax.set_xscale('log')
+            self.ax.set_ylim([.1,1.01])
+            self.ax.set_yscale('log')
+
+        if logy:
+            self.ax.set_yscale('log')
+            self.ax.set_ylim([1E-5,2.])
 
         if show:
             plt.show(block=True)

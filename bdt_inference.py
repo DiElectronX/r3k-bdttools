@@ -121,7 +121,7 @@ def bdt_inference(dataset_params, model_params, output_params, args):
 
     # save plots
     if args.plot:
-        roc.save(os.path.join(output_params.output_dir, 'roc.png'), show=False)
+        roc.save(os.path.join(output_params.output_dir, 'roc.png'), zoom=True, show=False)
 
     # save data measurement file
     output_filename = edit_filename(base_filename, suffix='data')
