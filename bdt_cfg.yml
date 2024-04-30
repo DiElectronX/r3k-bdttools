@@ -6,8 +6,10 @@ datasets:
   other_mc_files: 
     jpsi: /Users/noahzipper/Desktop/Research/Rk/BDT_Studies/RootFiles/xval_jpsi_v2.root
     psi2s: /Users/noahzipper/Desktop/Research/Rk/BDT_Studies/RootFiles/xval_psi2s_v2.root
-    bu_kstar_jpsi_pion: /Users/noahzipper/Desktop/Research/Rk/BDT_Studies/RootFiles/xval_bu_kstar_jpsi_pion_v2.root
-  tree_name: mytree
+    kstar_jpsi_pion: /Users/noahzipper/Desktop/Research/Rk/BDT_Studies/RootFiles/measurement_kstar_jpsi_pion.root
+    k0star_jpsi_kaon: /Users/noahzipper/Desktop/Research/Rk/BDT_Studies/RootFiles/measurement_k0star_jpsi_kaon.root
+    k0star_jpsi_pion: /Users/noahzipper/Desktop/Research/Rk/BDT_Studies/RootFiles/measurement_k0star_jpsi_pion.root
+  tree_name: mytree 
   b_mass_branch: Bmass
   ll_mass_branch: Mll
 
@@ -18,7 +20,7 @@ model:
   preselection: (KLmassD0 > 2.)
 
 output:
-  output_dir: outputs/new_workflow_v2
+  output_dir: outputs/updated_files
   score_branch: bdt_score
   output_branches: 
     common: [event, Bmass, Mll]
