@@ -20,6 +20,7 @@ def preprocess_inputs(runFiles, ipart, args, branch_dict):
     tree_values={}
     ncands_branch = 'n'+branch_dict['candidate']
     needed_branches = list({ncands_branch} | branch_dict['cand_branches'].keys() | branch_dict['scalar_branches'].keys())
+
     for i, tree in enumerate(ur.iterate([runFile+':Events' for runFile in runFiles],needed_branches,cut=args.split,namedecode='utf-8',library='np')):
         presel_mask = np.full(ak.flatten(tree[branch_dict['candidate']+'_fit_mass'],ax_flat).to_numpy().shape, True)
         # we want to rearrange leptons to make sure that they are properly sorted (pt or type). so the output leptonX will have two contributions from input leptonX and Y
@@ -242,7 +243,7 @@ def main(args):
             },
             'scalar_branches' : {
                     'PV_npvs'    : 'Npv',
-                    'event'      : 'idx',
+                    ' event'      : 'event',
                     'Presel_BDT' : 'presel_bdt',
             },
             'presel' : {
