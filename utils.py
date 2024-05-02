@@ -145,7 +145,7 @@ def read_bdt_arrays(file, tree, features, weights_branch=None, preselection=None
 
 def save_bdt_arrays(input_file, input_tree, output_file, output_tree, output_branch_names, score_branch, scores, idxs=None, preselection=None, n_evts=None):    
     with ur.open(input_file) as f_in:
-        output_branches = f_in[input_tree].arrays(output_branch_names, cut=preselection, entry_stop=n_evts, library=BACKEND)
+        output_branches = f_in[input_tree].arrays(output_branch_names, cut=preselection, entry_stop=n_evts, library=BACKEND) #do we need preselection?
 
         if idxs is not None:
             for br in output_branches.values():
