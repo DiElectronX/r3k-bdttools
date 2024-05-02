@@ -17,10 +17,10 @@ model:
   template_file: model_template_bdt_3.py
   features: [Bprob, BsLxy, L2iso/L2pt, Bcos, Kiso/Kpt, LKdz, LKdr, Passymetry, Kip3d/Kip3dErr, L1id, L2id]
   sample_weights: trig_wgt
-  preselection: (KLmassD0 > 2.) #might related to why the output sample shrink -> why
+  preselection: (KLmassD0 > 2.)
 
 output:
-  output_dir: outputs/new_model_3
+  output_dir: outputs/model_3
   score_branch: bdt_score_3
   output_branches: 
     common: [event, Bmass, Mll]

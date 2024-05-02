@@ -84,54 +84,54 @@ def bdt_inference(dataset_params, model_params, output_params, args):
     event_idxs = np.empty(X_data.shape[0], dtype=np.int64)
     last_idx = -1
     
-    if args.plot:
-        roc = ROCPlotterKFold(skf)
+    # if args.plot:
+    #     roc = ROCPlotterKFold(skf)
 
-    lgr.log(f'Training Model for Data Measurement ({skf.get_n_splits()}-fold x-val)', just_print=True)
-    start = time.perf_counter()
-    for fold, (train_data, test_data) in enumerate(skf.split(X_data, y_data)):
-        # mask all training events (low-q2 + mass sidebands for data)
-        train_mask = np.concatenate((mask_sig, mask_bkg[train_data]))
+    # lgr.log(f'Training Model for Data Measurement ({skf.get_n_splits()}-fold x-val)', just_print=True)
+    # start = time.perf_counter()
+    # for fold, (train_data, test_data) in enumerate(skf.split(X_data, y_data)):
+    #     # mask all training events (low-q2 + mass sidebands for data)
+    #     train_mask = np.concatenate((mask_sig, mask_bkg[train_data]))
 
-        # split events into training and validation sets from mc and data fold
-        split = train_test_split(
-            np.concatenate((X_mc, X_data[train_data]))[train_mask], 
-            np.concatenate((y_mc, y_data[train_data]))[train_mask], 
-            np.concatenate((weights_mc, weights_data[train_data]))[train_mask],
-            test_size=0.05, random_state=271996
-        )
-        X_train, X_val, y_train, y_val, weights_train, weights_val = split
-        eval_set = ((X_train, y_train), (X_val, y_val))
+    #     # split events into training and validation sets from mc and data fold
+    #     split = train_test_split(
+    #         np.concatenate((X_mc, X_data[train_data]))[train_mask], 
+    #         np.concatenate((y_mc, y_data[train_data]))[train_mask], 
+    #         np.concatenate((weights_mc, weights_data[train_data]))[train_mask],
+    #         test_size=0.05, random_state=271996
+    #     )
+    #     X_train, X_val, y_train, y_val, weights_train, weights_val = split
+    #     eval_set = ((X_train, y_train), (X_val, y_val))
 
-        # fit model
-        model.fit(
-            X_train, 
-            y_train, 
-            sample_weight=weights_train, 
-            eval_set=eval_set, 
-            verbose=2 if args.verbose else 0
-        )
+    #     # fit model
+    #     model.fit(
+    #         X_train, 
+    #         y_train, 
+    #         sample_weight=weights_train, 
+    #         eval_set=eval_set, 
+    #         verbose=2 if args.verbose else 0
+    #     )
 
-        # predict bdt scores on data events designated for testing in fold
-        fill_idxs = slice(last_idx+1,last_idx+test_data.size+1)
-        scores[fill_idxs] = model.predict_proba(X_data[test_data])[:,0]
-        event_idxs[fill_idxs] = test_data
-        last_idx = last_idx+test_data.size
+    #     # predict bdt scores on data events designated for testing in fold
+    #     fill_idxs = slice(last_idx+1,last_idx+test_data.size+1)
+    #     scores[fill_idxs] = model.predict_proba(X_data[test_data])[:,0]
+    #     event_idxs[fill_idxs] = test_data
+    #     last_idx = last_idx+test_data.size
 
-        # add line to roc plot for fold
-        if args.plot:
-            roc.add_fold(model, X_val, y_val)
+    #     # add line to roc plot for fold
+    #     if args.plot:
+    #         roc.add_fold(model, X_val, y_val)
 
-        lgr.log(f'Finished fold {fold+1} of {skf.get_n_splits()}', just_print=True)
-        del split, train_mask, X_train, X_val, y_train, y_val, weights_train, \
-            weights_val, eval_set, train_data, test_data
-        gc.collect()
+    #     lgr.log(f'Finished fold {fold+1} of {skf.get_n_splits()}', just_print=True)
+    #     del split, train_mask, X_train, X_val, y_train, y_val, weights_train, \
+    #         weights_val, eval_set, train_data, test_data
+    #     gc.collect()
 
-    lgr.log(f'Elapsed Training/Inference Time on Data = {round(time.perf_counter() - start)}s', just_print=True)
+    # lgr.log(f'Elapsed Training/Inference Time on Data = {round(time.perf_counter() - start)}s', just_print=True)
 
     # save plots
-    if args.plot:
-        roc.save(os.path.join(output_params.output_dir, 'roc.png'), zoom=True, show=False)
+    # if args.plot:
+    #     roc.save(os.path.join(output_params.output_dir, 'roc.png'), zoom=True, show=False)
 
     # save data measurement file
     output_filename = edit_filename(base_filename, suffix='data')
