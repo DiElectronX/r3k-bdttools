@@ -17,7 +17,7 @@ BACKEND = 'np'
 
 
 class R3KLogger():
-    def __init__(self, filepath, verbose=True):        
+    def __init__(self, filepath, verbose=True, append=False):        
         self.filepath = filepath
         self.verbose = verbose
         
@@ -29,7 +29,7 @@ class R3KLogger():
         self.fout_logger.setLevel(logging.INFO)
         self.formatter = logging.Formatter('%(levelname)s | %(asctime)s | %(message)s')
 
-        self.fh = logging.FileHandler(self.filepath, mode='w')
+        self.fh = logging.FileHandler(self.filepath, mode='a' if append else 'w')
         self.fh.setFormatter(self.formatter)
         self.fh.setLevel(logging.INFO)
 
