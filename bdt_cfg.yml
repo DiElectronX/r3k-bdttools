@@ -1,11 +1,22 @@
 datasets:
-  data_file: /Users/noahzipper/Desktop/Research/Rk/BDT_Studies/RootFiles/xval_data_v2.root
-  rare_file: /Users/noahzipper/Desktop/Research/Rk/BDT_Studies/RootFiles/xval_rare_v2.root
+  data_file: /eos/user/j/jodedra/AnalysisWork_2024/NoahBDTtools/r3k-bdttools/oldfiles/testfiles/measurement_data_2_full.root
+  rare_file: /eos/user/j/jodedra/AnalysisWork_2024/NoahBDTtools/r3k-bdttools/oldfiles/testfiles/measurement_rare_2.root
   other_data_files: 
-    same_sign_electrons: /Users/noahzipper/Desktop/Research/Rk/BDT_Studies/RootFiles/xval_data_sameSignElectrons_v2.root
+    #same_sign_electrons: /eos/user/j/jodedra/AnalysisWork_2024/NoahBDTtools/r3k-bdttools/samesign/measurement_data_samesign_complete.root
+    same_sign_electrons: /eos/user/j/jodedra/AnalysisWork_2024/NoahBDTtools/r3k-bdttools/oldfiles/testfiles/measurement_data_2343.root
   other_mc_files: 
-    jpsi: /Users/noahzipper/Desktop/Research/Rk/BDT_Studies/RootFiles/xval_jpsi_v2.root
-    psi2s: /Users/noahzipper/Desktop/Research/Rk/BDT_Studies/RootFiles/xval_psi2s_v2.root
+    #jpsi: /eos/user/j/jodedra/AnalysisWork_2024/NoahBDTtools/r3k-bdttools/preparedMC/measurement_rare_JPSI.root
+    #psi2s: /eos/user/j/jodedra/AnalysisWork_2024/NoahBDTtools/r3k-bdttools/preparedMC/measurement_rare_PSI2S.root
+    #rare_mass: /eos/user/j/jodedra/AnalysisWork_2024/NoahBDTtools/r3k-bdttools/preparedMC/measurement_rare_RARE.root
+    #bd_kstar_psi2s_kaon: /eos/user/j/jodedra/AnalysisWork_2024/NoahBDTtools/r3k-bdttools/measurement_rare_bdpsi2skaon.root
+    #bd_kstar_psi2s_pion: /eos/user/j/jodedra/AnalysisWork_2024/NoahBDTtools/r3k-bdttools/measurement_rare_bdpsi2spion.root
+    #bu_kstar_jpsi_pion: /eos/user/j/jodedra/AnalysisWork_2024/NoahBDTtools/r3k-bdttools/backgrounds_rounds_prepared/measurement_rare_Bukstarjpsi_pion.root
+    #bd_kstar_jpsi_kaon: /eos/user/j/jodedra/AnalysisWork_2024/NoahBDTtools/r3k-bdttools/backgrounds_rounds_prepared/measurement_rare_BdToK0starJPsi_kaon.root
+    #bd_kstar0_psi2s_kaon_more: /eos/user/j/jodedra/AnalysisWork_2024/NoahBDTtools/r3k-bdttools/newsample080624/bd_kstar0psi2s_kaon_MC.root
+    #bd_kstar0_psi2s_pion_more: /eos/user/j/jodedra/AnalysisWork_2024/NoahBDTtools/r3k-bdttools/newsample080624/bd_kstar0psi2s_pion_MC.root
+  InclusiveMC:
+    Inclusive: /eos/user/j/jodedra/AnalysisWork_2024/NoahBDTtools/r3k-bdttools/withtrig_wgts/inclusivewithtrigweights.root
+    #bd_kstar_jpsi_pion: /eos/user/j/jodedra/AnalysisWork_2024/NoahBDTtools/r3k-bdttools/backgrounds_rounds_prepared/measurement_rare_BdToK0starJPsi_pion.root
   tree_name: mytree
   b_mass_branch: Bmass
   ll_mass_branch: Mll
@@ -15,12 +26,16 @@ model:
   features: [Bprob, BsLxy, L2iso/L2pt, Bcos, Kiso/Kpt, LKdz, LKdr, Passymetry, Kip3d/Kip3dErr, L1id, L2id]
   sample_weights: trig_wgt
   preselection: (KLmassD0 > 2.)
+  selectiontraining: (KLmassD0 > -2.)
 
 output:
-  output_dir: outputs/new_workflow_v2
+  output_dir: outputbdt/bdtoutput27_06_24_inclusive_final_focusoninclusive
   score_branch: bdt_score
   output_branches: 
-    common: [event, Bmass, Mll]
+    common: [idx, Bmass, Mll, KLmassD0]
     data: 
     mc: [trig_wgt]
+    inclusive: [BToKEE_cand_idx,GenPart_idx,GenPart_genPartIdxMother,GenPart_pdgId
+    ,GenPart_status,GenPart_eta, GenPart_mass,GenPart_phi,GenPart_pt,GenPart_vx,GenPart_vy,GenPart_vz,
+    Mll,Bpt,Bmass,Bcos,Bprob,BmassErr,Biso,BsLxy,L1pt,L1eta,L1phi,L1iso,L1id,L2pt,L2eta,L2phi,L2iso,L2id]
   log_file: log.txt

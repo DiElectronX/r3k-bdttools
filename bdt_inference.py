@@ -237,7 +237,7 @@ def bdt_inference(dataset_params, model_params, output_params, args):
                 dataset_params.tree_name, 
                 model_params.features, 
                 model_params.sample_weights, 
-                model_params.preselection, 
+                model_params.selectiontraining, 
                 (dataset_params.b_mass_branch, dataset_params.ll_mass_branch),
                 n_evts=debug_n_evts,
             )
@@ -256,7 +256,38 @@ def bdt_inference(dataset_params, model_params, output_params, args):
                 output_branch_names, 
                 output_params.score_branch, 
                 scores, 
-                preselection=model_params.preselection, 
+                preselection=model_params.selectiontraining, 
+                n_evts=debug_n_evts,
+            )
+            lgr.log(f'MC ({mc_name}) Measurement File: {output_filename}')
+
+    if dataset_params.InclusiveMC:
+        for mc_name, mc_file in dataset_params.InclusiveMC.items():        # load data & mc arrays from input files
+            X_mc_extra, _, _ = read_bdt_arrays(
+                mc_file, 
+                dataset_params.tree_name, 
+                model_params.features, 
+                model_params.sample_weights, 
+                model_params.selectiontraining, 
+                (dataset_params.b_mass_branch, dataset_params.ll_mass_branch),
+                n_evts=debug_n_evts,
+            )
+
+            # bdt inference
+            scores = np.array([x[1] for x in model.predict_proba(X_mc_extra)], dtype=np.float64)
+
+            # save jpsi mc measurement file
+            output_filename = edit_filename(base_filename, suffix=mc_name)
+            output_branch_names = get_branches(output_params, ['common','inclusive'])
+            save_bdt_arrays(
+                mc_file, 
+                dataset_params.tree_name, 
+                output_filename, 
+                dataset_params.tree_name, 
+                output_branch_names, 
+                output_params.score_branch, 
+                scores, 
+                preselection=model_params.selectiontraining, 
                 n_evts=debug_n_evts,
             )
             lgr.log(f'MC ({mc_name}) Measurement File: {output_filename}')

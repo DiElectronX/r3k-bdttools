@@ -17,10 +17,12 @@ def preprocess_inputs(runFiles, ipart, args, branch_dict):
         args.useLowQ = False
         args.useBsideBands = False
 
-    tree_values={}
+    #tree_values={}
     ncands_branch = 'n'+branch_dict['candidate']
     needed_branches = list({ncands_branch} | branch_dict['cand_branches'].keys() | branch_dict['scalar_branches'].keys())
-    for i, tree in enumerate(ur.iterate([runFile+':Events' for runFile in runFiles],needed_branches,cut=args.split,namedecode='utf-8',library='np')):
+    for i, tree in enumerate(ur.iterate([runFile+':Events' for runFile in runFiles],needed_branches,step_size="10mb",cut=args.split,namedecode='utf-8',library='np')):
+        tree_values={}
+        print("number:",i)
         presel_mask = np.full(ak.flatten(tree[branch_dict['candidate']+'_fit_mass'],ax_flat).to_numpy().shape, True)
         # we want to rearrange leptons to make sure that they are properly sorted (pt or type). so the output leptonX will have two contributions from input leptonX and Y
         outl1_inl1_mask = np.copy(presel_mask)
@@ -83,7 +85,7 @@ def preprocess_inputs(runFiles, ipart, args, branch_dict):
         if args.useLowQ:
             presel_mask *= np.array((mll_branch>branch_dict['lowq2_region'][0]) * (mll_branch<branch_dict['lowq2_region'][1]))
         if args.useHighQ:
-            presel_mask *= np.aarray((mll_branch>branch_dict['highq2_region'][0]) * (mll_branch<branch_dict['highq2_region'][1]))
+            presel_mask *= np.array((mll_branch>branch_dict['highq2_region'][0]) * (mll_branch<branch_dict['highq2_region'][1]))
 
         #eta cuts k, e1,e2
         k_eta_branch = copied_branches[branch_dict['candidate']+'_fit_k_eta']
@@ -135,22 +137,22 @@ def preprocess_inputs(runFiles, ipart, args, branch_dict):
             else:
                  tree_values[br_name]=np.concatenate((tree_values[br_name], selected_evts))
 
-    outname = 'measurement' if args.mode=='measure' else 'train'
-    tags = [
-        (args.channel=='data' and args.mode=='train', '_bkg'),
-        (args.channel=='rare' and args.mode=='train', '_sig'),
-        (True, f'_{args.channel}'),
-        (args.useBsideBands, '_sideBands'),
-        (args.useLowQ, '_lowQ'),
-        (args.useHighQ, '_highQ'),
-        (args.total>0, f'_maxFiles_{str(args.total)}'),
-        (args.label, f'_{args.label}'),
-        (ipart, f'_part{ipart}'),
-    ]
-    outname += ''.join(tag for cond, tag in tags if cond)
+        outname = 'measurement' if args.mode=='measure' else 'train'
+        tags = [
+            (args.channel=='data' and args.mode=='train', '_bkg'),
+            (args.channel=='rare' and args.mode=='train', '_sig'),
+            (True, f'_{args.channel}'),
+            (args.useBsideBands, '_sideBands'),
+            (args.useLowQ, '_lowQ'),
+            (args.useHighQ, '_highQ'),
+            (args.total>0, f'_maxFiles_{str(args.total)}'),
+            (args.label, f'_{args.label}'),
+            (ipart, f'_part{ipart}'),
+        ]
+        outname += ''.join(tag for cond, tag in tags if cond)
 
-    with ur.recreate(args.outpath+'/'+outname+'.root') as f:
-        f['mytree'] = tree_values
+        with ur.recreate(args.outpath+'/'+outname+str(i)+'.root') as f:
+            f['mytree'] = tree_values
 
 
 def mp_worker(files,ipart,args,branch_dict):
@@ -200,7 +202,7 @@ def main(args):
             'candidate_mass_range'     : (4.5,6.),
             'candidate_mass_sidebands' : ((4.8,5.),(5.4,5.6)),
             'lowq2_region'             : (1.05,2.45),
-            'highq2_region'            : (3.85,6.),
+            'highq2_region'            : (3.85,4.69),
             'cand_branches'            : {
                     col+'_mll_fullfit'     : 'Mll',
                     col+'_fit_pt'          : 'Bpt',
@@ -212,10 +214,12 @@ def main(args):
                     col+'_l_xy_sig'        : 'BsLxy',
                     col+'_fit_l1_pt'       : 'L1pt',
                     col+'_fit_l1_eta'      : 'L1eta',
+                    col+'_fit_l1_phi'      : 'L1phi',
                     col+'_l1_iso04'        : 'L1iso',
                     col+'_l1_PFMvaID_retrained'      : 'L1id',
                     col+'_fit_l2_pt'       : 'L2pt',
                     col+'_fit_l2_eta'      : 'L2eta',
+                    col+'_fit_l2_phi'      : 'L2phi',
                     col+'_l2_iso04'        : 'L2iso',
                     col+'_l2_PFMvaID_retrained'      : 'L2id',
                     col+'_fit_k_pt'        : 'Kpt',
@@ -233,6 +237,19 @@ def main(args):
                     col+'_k_dca_sig'       : 'KsDca',
                     col+'_kl_massKPi'      : 'KLmassD0',
                     col+'_p_assymetry'     : 'Passymetry',
+                    'trigger_OR'           : 'trigger_OR',
+                    'BToKEE_cand_idx'          : 'BToKEE_cand_idx',
+                    'GenPart_idx'              : 'GenPart_idx',
+                    'GenPart_genPartIdxMother' : 'GenPart_genPartIdxMother',
+                    'GenPart_pdgId'            : 'GenPart_pdgId',
+                    'GenPart_status'           : 'GenPart_status',
+                    'GenPart_eta'               : 'GenPart_eta',
+                    'GenPart_mass'               : 'GenPart_mass',
+                    'GenPart_phi'               : 'GenPart_phi',
+                    'GenPart_pt'               : 'GenPart_pt',
+                    'GenPart_vx'               : 'GenPart_vx',
+                    'GenPart_vy'               : 'GenPart_vy',
+                    'GenPart_vz'               : 'GenPart_vz',
             },
             'leppairs_branches' : {
                     col+'_fit_l1_pt'   : col+'_fit_l2_pt',
@@ -253,6 +270,7 @@ def main(args):
                     f'{col+"_fit_k_pt"}    > 0.5',
                     f'{col+"_mll_fullfit"} > 0.0',
                     'Presel_BDT > -3.4',
+                    'trigger_OR > 0.5',
             },
             'leppairs_presel' : {
                     f'{col+"_fit_l1_pt"}  > 1.0',
