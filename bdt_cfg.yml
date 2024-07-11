@@ -16,6 +16,18 @@ datasets:
 model:
   template_file: model_template.py
   features: [Bprob, BsLxy, L2iso/L2pt, Bcos, Kiso/Kpt, LKdz, LKdr, Passymetry, Kip3d/Kip3dErr, L1id, L2id]
+  feature_labels: 
+    - "$prob({\\rm SV})$"
+    - "$L_{xy}/\\sigma_{L_{xy}}$"
+    - "$I_{\\Delta R=0.4}^{\\rm rel}(e_2)/p_{T}(e_2)$"
+    - "$\\cos{\\alpha_{2D}}$"
+    - "$I_{\\Delta R=0.4}^{\\rm rel}(K^{\\pm})/p_{T}(K^{\\pm})$"
+    - "$dz(e, K^{\\pm})$"
+    - "$\\Delta R(e, K^{\\pm})$"
+    - "$\\frac{|\\mathbf{p(e^{+}e^{-})}\\times \\mathbf{r}| - |\\mathbf{p(K^{\\pm})}\\times \\mathbf{r}|}{|\\mathbf{p(e^{+}e^{-})}\\times \\mathbf{r}| + |\\mathbf{p(K^{\\pm})}\\times \\mathbf{r}|}$"
+    - "$d_{3D}(K^{\\pm}, e^{+}e^{-})/\\sigma_{d_{3D}}$"
+    - "ID($e_1$)"
+    - "ID($e_2$)"
   sample_weights: trig_wgt
   preselection: (KLmassD0 > 2.)
 
