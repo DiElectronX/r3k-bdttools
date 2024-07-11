@@ -9,8 +9,8 @@ import numpy as np
 from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split, StratifiedKFold
 from logging import DEBUG, INFO, WARNING, ERROR
-from utils import R3KLogger, ROCPlotterKFold, read_bdt_arrays, \
-    save_bdt_arrays, load_external_model, edit_filename, get_branches
+from utils import R3KLogger, ROCPlotterKFold, FeatureImportancePlotterKFold, ScorePlotterKFold, \
+                  read_bdt_arrays, save_bdt_arrays, load_external_model, edit_filename, get_branches
 
 
 def bdt_inference(dataset_params, model_params, output_params, args):
@@ -18,9 +18,9 @@ def bdt_inference(dataset_params, model_params, output_params, args):
 
     # configuration for outputs & logging
     os.makedirs(output_params.output_dir, exist_ok=True)
-    base_filename = os.path.join(output_params.output_dir, 'measurement.root')
+    base_filename = output_params.output_dir / 'measurement.root'
     lgr = R3KLogger(
-        os.path.join(output_params.output_dir, output_params.log_file), 
+        output_params.output_dir / output_params.log_file,
         verbose=args.verbose,
         append=True if args.cached_model else False,
     )
@@ -29,8 +29,8 @@ def bdt_inference(dataset_params, model_params, output_params, args):
         cfg_str = f'cfg_path: {args.config}\n{f.read()}'
 
     if args.cached_model:
-        cached_filepath = os.path.join(output_params.output_dir, 'model.json') if isinstance(args.cached_model,bool) else args.cached_model
-        assert os.path.isfile(cached_filepath), 'No Valid Model File Found'
+        cached_filepath = output_params.output_dir / 'model.json' if isinstance(args.cached_model,bool) else args.cached_model
+        assert cached_filepath.is_file(), 'No Valid Model File Found'
         # Load XGBoost model if stored in output x
         model = XGBClassifier()
         model.load_model(cached_filepath)
@@ -95,8 +95,11 @@ def bdt_inference(dataset_params, model_params, output_params, args):
         event_idxs = np.empty(X_data.shape[0], dtype=np.int64)
         last_idx = -1
         
+        # initialize plotters
         if args.plot:
             roc = ROCPlotterKFold(skf)
+            feat_imp = FeatureImportancePlotterKFold(skf, features=model_params.feature_labels)
+            score_dist = ScorePlotterKFold(skf)
 
         lgr.log(f'Training Model for Data Measurement ({skf.get_n_splits()}-fold x-val)', just_print=True)
         start = time.perf_counter()
@@ -129,9 +132,11 @@ def bdt_inference(dataset_params, model_params, output_params, args):
             event_idxs[fill_idxs] = test_data
             last_idx = last_idx+test_data.size
 
-            # add line to roc plot for fold
+            # add data to to plots for fold
             if args.plot:
                 roc.add_fold(model, X_val, y_val)
+                feat_imp.add_fold(model)
+                score_dist.add_fold(model, X_train, y_train, X_val, y_val)
 
             lgr.log(f'Finished fold {fold+1} of {skf.get_n_splits()}', just_print=True)
             del split, train_mask, X_train, X_val, y_train, y_val, weights_train, \
@@ -142,7 +147,11 @@ def bdt_inference(dataset_params, model_params, output_params, args):
 
         # save plots
         if args.plot:
-            roc.save(os.path.join(output_params.output_dir, 'roc.png'), zoom=True, show=False)
+            plot_dir = output_params.output_dir / 'plots'
+            plot_dir.mkdir(exist_ok=True)
+            roc.save(plot_dir / 'roc.png')
+            feat_imp.save(plot_dir / 'feature_importance.png')
+            score_dist.save(plot_dir / 'scores.png')
 
         # save data measurement file
         output_filename = edit_filename(base_filename, suffix='data')
@@ -236,7 +245,7 @@ def bdt_inference(dataset_params, model_params, output_params, args):
         gc.collect()
 
         # Save XGBoost model
-        model.save_model(os.path.join(output_params.output_dir, 'model.json'))
+        model.save_model(output_params.output_dir / 'model.json')
 
     # predict bdt scores for other data files in config
     if dataset_params.other_data_files:
@@ -319,12 +328,14 @@ def main(args):
     if args.debug:
         args.verbose = True
         output_params.output_dir = Path('outputs/tmp')
+    else:
+        output_params.output_dir = Path(output_params.output_dir)
 
     bdt_inference(dataset_params, model_params ,output_params, args)
 
-    if args.debug:
-        if output_params.output_dir.exists() and output_params.output_dir.is_dir():
-            shutil.rmtree(output_params.output_dir)
+    # if args.debug:
+    #     if output_params.output_dir.exists() and output_params.output_dir.is_dir():
+    #         shutil.rmtree(output_params.output_dir)
 
 
 if __name__ == '__main__':

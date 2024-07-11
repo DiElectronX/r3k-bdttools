@@ -1,9 +1,11 @@
 import os
 import sys
 import logging
+import pickle
 import importlib.util
 import numpy as np
 import multiprocessing as mp
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import uproot as ur
 from xgboost import Booster
@@ -14,7 +16,8 @@ from sklearn.metrics import auc, RocCurveDisplay
 from logging import DEBUG, INFO, WARNING, ERROR
 
 BACKEND = 'np'
-
+MPL_BACKEND = 'TkAgg'
+# mpl.use(MPL_BACKEND)
 
 class R3KLogger():
     def __init__(self, filepath, verbose=True, append=False):        
@@ -65,6 +68,7 @@ class ROCPlotterKFold():
         self.mean_fpr = np.linspace(0, 1, 100)
         self.fig, self.ax = plt.subplots(figsize=(6, 6))
 
+
     def add_fold(self, model, X, y):
         self.ifold += 1
         _viz = RocCurveDisplay.from_estimator(
@@ -83,37 +87,52 @@ class ROCPlotterKFold():
         self.tprs.append(_interp_tpr)
         self.aucs.append(_viz.roc_auc)
 
+
+    def save_to_pickle(self, path):
+        new_path = path.with_suffix('.pkl')
+        with open(new_path,'wb') as pkl_file:
+            pickle.dump(self.roc_data, pkl_file)
+
+
     def save(self, path, show=False, logy=False, zoom=False):
         mean_tpr = np.mean(self.tprs, axis=0)
         mean_tpr[-1] = 1.0
         mean_auc = auc(self.mean_fpr, mean_tpr)
         std_auc = np.std(self.aucs)
+        std_tpr = np.std(self.tprs, axis=0)
+        tprs_upper = np.minimum(mean_tpr + std_tpr, 1)
+        tprs_lower = np.maximum(mean_tpr - std_tpr, 0)
+
+        self.roc_data = {
+            'mean_fpr' : self.mean_fpr,
+            'mean_tpr' : mean_tpr,
+            'tprs_lower' : tprs_lower,
+            'tprs_upper' : tprs_upper,
+            'mean_auc' : mean_auc,
+            'std_auc' : std_auc,
+        }
+        
         self.ax.plot(
-            self.mean_fpr,
-            mean_tpr,
+            self.roc_data['mean_fpr'],
+            self.roc_data['mean_tpr'],
             color='b',
-            label=r'Mean ROC (AUC = %0.2f $\pm$ %0.2f)' % (mean_auc, std_auc),
+            label=r'Mean ROC (AUC = %0.2f $\pm$ %0.2f)' % (self.roc_data['mean_auc'], self.roc_data['std_auc']),
             lw=2,
             alpha=0.8,
         )
 
-        std_tpr = np.std(self.tprs, axis=0)
-        tprs_upper = np.minimum(mean_tpr + std_tpr, 1)
-        tprs_lower = np.maximum(mean_tpr - std_tpr, 0)
         self.ax.fill_between(
-            self.mean_fpr,
-            tprs_lower,
-            tprs_upper,
+            self.roc_data['mean_fpr'],
+            self.roc_data['tprs_upper'],
+            self.roc_data['tprs_lower'],
             color='grey',
             alpha=0.2,
             label=r'$\pm$ 1 std. dev.',
         )
 
-        self.ax.set(
-            xlabel='False Positive Rate',
-            ylabel='True Positive Rate',
-            title='Mean ROC curve with variability',
-        )
+        self.ax.set_xlabel='False Positive Rate',
+        self.ax.set_ylabel='True Positive Rate',
+        self.ax.set_title='Mean ROC curve with variability',
         self.ax.legend(loc='lower right')
     
         if zoom:
@@ -127,10 +146,136 @@ class ROCPlotterKFold():
             self.ax.set_ylim([1E-5,2.])
 
         if show:
-            plt.show(block=True)
+            self.fig.show()
+        
+        self.save_to_pickle(path)
+        self.fig.savefig(path)
 
-        plt.savefig(path)
 
+class FeatureImportancePlotterKFold():
+    def __init__(self, kf, features=None):
+        self.kf = kf
+        self.ifold = 0
+        self.features = features if features else []
+        self.feature_imps = {}
+        self.fig, self.ax = plt.subplots(figsize=(8, 6),layout='constrained')
+
+
+    def add_fold(self, model):
+        self.ifold += 1
+
+        if not self.features:
+            self.features = range(len(model.feature_importances_))
+
+        self.feature_imps[f'KFold {self.ifold}'] = model.feature_importances_
+
+
+    def save_to_pickle(self, path):
+        new_path = path.with_suffix('.pkl')
+        with open(new_path,'wb') as pkl_file:
+            pickle.dump(self.feature_imp_data, pkl_file)
+
+
+    def save(self, path, show=False):
+        self.feature_imp_data = {
+            'features' : self.features,
+            'feature_imps' : self.feature_imps,
+        }
+
+        width = 0.25
+        x = np.arange(len(self.feature_imp_data['features']))
+        for i, (label, vals) in enumerate(self.feature_imp_data['feature_imps'].items()):
+            offset = width * i
+            rects = self.ax.barh(x+offset, vals, width, label=label, align='center')
+            
+        self.ax.set_xlabel('Feature Importance', loc='right')
+        self.ax.set_ylabel('Features', loc='top')
+        self.ax.set_yticks(x + width, self.feature_imp_data['features'])
+        self.ax.legend()
+
+        if show:
+            self.fig.show()
+
+        self.save_to_pickle(path)
+        self.fig.savefig(path)
+
+class ScorePlotterKFold():
+    def __init__(self, kf, features=None):
+        self.kf = kf
+        self.ifold = 0
+        self.score_data = {}
+        self.fig, self.ax = plt.subplots(figsize=(8, 6),layout='constrained')
+
+
+    def add_fold(self, model, X_train, y_train, X_val, y_val):
+        self.ifold += 1
+
+        scores_train = model.predict_proba(X_train)[:,1].astype(np.float64)
+        scores_val = model.predict_proba(X_val)[:,1].astype(np.float64)
+
+        self.score_data[f'KFold {self.ifold}'] = {
+            'scores_train_sig' : scores_train[y_train==1],
+            'scores_train_bkg' : scores_train[y_train==0],
+            'scores_val_sig' : scores_val[y_val==1],
+            'scores_val_bkg' : scores_val[y_val==0],
+        }
+
+
+    def save_to_pickle(self, path):
+        new_path = path.with_suffix('.pkl')
+        with open(new_path,'wb') as pkl_file:
+            pickle.dump(self.score_data, pkl_file)
+
+
+    def save(self, path, show=False):
+        bins = np.linspace(-5,5,40)
+        bin_centers = 0.5*(bins[1:] + bins[:-1])
+
+        scores_train_sig = np.array([])
+        scores_train_bkg = np.array([])
+        scores_val_sig = np.array([])
+        scores_val_bkg = np.array([])
+
+        for i, (label, vals) in enumerate(self.score_data.items()):
+            scores_train_sig = np.append(scores_train_sig, vals['scores_train_sig'])
+            scores_train_bkg = np.append(scores_train_bkg, vals['scores_train_bkg'])
+            scores_val_sig = np.append(scores_val_sig, vals['scores_val_sig'])
+            scores_val_bkg = np.append(scores_val_bkg, vals['scores_val_bkg'])
+
+        scores_train_sig = scores_train_sig.flatten()
+        scores_train_bkg = scores_train_bkg.flatten()
+        scores_val_sig = scores_val_sig.flatten()
+        scores_val_bkg = scores_val_bkg.flatten()
+
+        scores_train_sig_wgts = np.abs(np.ones_like(scores_train_sig) / scores_train_sig.sum())
+        scores_train_bkg_wgts = np.abs(np.ones_like(scores_train_bkg) / scores_train_bkg.sum())
+        scores_val_sig_wgts = np.abs(np.ones_like(scores_val_sig) / scores_val_sig.sum())
+        scores_val_bkg_wgts = np.abs(np.ones_like(scores_val_bkg) / scores_val_bkg.sum())
+
+        train_sig_hist,_ = np.histogram(scores_train_sig, bins=bins, weights=scores_train_sig_wgts)
+        train_bkg_hist,_ = np.histogram(scores_train_bkg, bins=bins, weights=scores_train_bkg_wgts)
+        val_sig_hist,_ = np.histogram(scores_val_sig, bins=bins, weights=scores_val_sig_wgts)
+        val_bkg_hist,_ = np.histogram(scores_val_bkg, bins=bins, weights=scores_val_bkg_wgts)
+
+        train_sig_hist_err = np.sqrt(np.histogram(scores_train_sig, bins=bins, weights=scores_train_sig_wgts**2)[0])
+        train_bkg_hist_err = np.sqrt(np.histogram(scores_train_bkg, bins=bins, weights=scores_train_bkg_wgts**2)[0])
+        val_sig_hist_err = np.sqrt(np.histogram(scores_val_sig, bins=bins, weights=scores_val_sig_wgts**2)[0])
+        val_bkg_hist_err = np.sqrt(np.histogram(scores_val_bkg, bins=bins, weights=scores_val_bkg_wgts**2)[0])
+
+        self.ax.errorbar(bin_centers, train_sig_hist, yerr=train_sig_hist_err, marker = '', drawstyle = 'steps-mid', label='Train, Signal')
+        self.ax.errorbar(bin_centers, train_bkg_hist, yerr=train_bkg_hist_err, marker = '', drawstyle = 'steps-mid', label='Train, Background')
+        self.ax.errorbar(bin_centers, val_sig_hist, yerr=val_sig_hist_err, marker = 'o', fillstyle='none', linestyle = '', label='Validation, Signal')
+        self.ax.errorbar(bin_centers, val_bkg_hist, yerr=val_bkg_hist_err, marker = 'o', fillstyle='none', linestyle = '', label='Validation, Background')
+            
+        self.ax.set_xlabel('BDT Score', loc='right')
+        self.ax.set_ylabel('A.U.', loc='top')
+        self.ax.legend()
+
+        if show:
+            self.fig.show()
+
+        self.save_to_pickle(path)
+        self.fig.savefig(path)
 
 def read_bdt_arrays(file, tree, features, weights_branch=None, preselection=None, cutvar_branches=('Bmass', 'Mll'), n_evts=None):
     all_branches = list(set(features) | set(cutvar_branches))
