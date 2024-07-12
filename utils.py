@@ -63,10 +63,11 @@ class ROCPlotterKFold():
     def __init__(self, kf):
         self.kf = kf
         self.ifold = 0
+        self.roc_data = {}
         self.tprs = []
         self.aucs = []
         self.mean_fpr = np.linspace(0, 1, 100)
-        self.fig, self.ax = plt.subplots(figsize=(6, 6))
+        self.fig, self.ax = plt.subplots(figsize=(8, 6),layout='constrained')
 
         self.inset_ax = self.ax.inset_axes(
             [0.25, 0.4, 0.65, 0.3],
@@ -81,13 +82,13 @@ class ROCPlotterKFold():
             model,
             X,
             y,
-            name=f'ROC fold {self.ifold}',
+            name=f'KFold {self.ifold}',
             alpha=0.3,
             lw=1,
             ax=self.ax,
             plot_chance_level=(self.ifold ==self.kf.get_n_splits() - 1),
         )
-
+        self.roc_data[f'KFold {self.ifold}'] = _viz.line_.get_data()
         _viz = RocCurveDisplay.from_estimator(
             model,
             X,
@@ -111,7 +112,7 @@ class ROCPlotterKFold():
             pickle.dump(self.roc_data, pkl_file)
 
 
-    def save(self, path, show=False, logy=False, zoom=False):
+    def save(self, path, show=False, logy=False, inset=False):
         mean_tpr = np.mean(self.tprs, axis=0)
         mean_tpr[-1] = 1.0
         mean_auc = auc(self.mean_fpr, mean_tpr)
@@ -120,17 +121,17 @@ class ROCPlotterKFold():
         tprs_upper = np.minimum(mean_tpr + std_tpr, 1)
         tprs_lower = np.maximum(mean_tpr - std_tpr, 0)
 
-        self.roc_data = {
+        self.roc_data.update({
             'mean_fpr' : self.mean_fpr,
             'mean_tpr' : mean_tpr,
             'tprs_lower' : tprs_lower,
             'tprs_upper' : tprs_upper,
             'mean_auc' : mean_auc,
             'std_auc' : std_auc,
-        }
+        })
         
         axes = [self.ax]
-        if zoom:
+        if inset:
             axes.append(self.inset_ax)
         
         for ax in axes:
@@ -156,7 +157,7 @@ class ROCPlotterKFold():
         self.ax.set_ylabel('True Positive Rate', loc='top')
         self.ax.legend(loc='lower right')
     
-        if zoom:
+        if inset:
             self.ax.indicate_inset_zoom(self.inset_ax, edgecolor='black')
             self.inset_ax.get_legend().remove()
             self.inset_ax.set_xlabel('')
@@ -221,6 +222,7 @@ class FeatureImportancePlotterKFold():
 
         self.save_to_pickle(path)
         self.fig.savefig(path)
+
 
 class ScorePlotterKFold():
     def __init__(self, kf, features=None):
@@ -299,6 +301,7 @@ class ScorePlotterKFold():
 
         self.save_to_pickle(path)
         self.fig.savefig(path)
+
 
 def read_bdt_arrays(file, tree, features, weights_branch=None, preselection=None, cutvar_branches=('Bmass', 'Mll'), n_evts=None):
     all_branches = list(set(features) | set(cutvar_branches))
