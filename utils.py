@@ -68,9 +68,15 @@ class ROCPlotterKFold():
         self.mean_fpr = np.linspace(0, 1, 100)
         self.fig, self.ax = plt.subplots(figsize=(6, 6))
 
+        self.inset_ax = self.ax.inset_axes(
+            [0.25, 0.4, 0.65, 0.3],
+            xlim=[.001,.8], ylim=[.9, 1],
+            # xticklabels=[], yticklabels=[]
+        )
 
     def add_fold(self, model, X, y):
         self.ifold += 1
+
         _viz = RocCurveDisplay.from_estimator(
             model,
             X,
@@ -79,6 +85,17 @@ class ROCPlotterKFold():
             alpha=0.3,
             lw=1,
             ax=self.ax,
+            plot_chance_level=(self.ifold ==self.kf.get_n_splits() - 1),
+        )
+
+        _viz = RocCurveDisplay.from_estimator(
+            model,
+            X,
+            y,
+            name=f'ROC fold {self.ifold}',
+            alpha=0.3,
+            lw=1,
+            ax=self.inset_ax,
             plot_chance_level=(self.ifold ==self.kf.get_n_splits() - 1),
         )
 
@@ -112,34 +129,40 @@ class ROCPlotterKFold():
             'std_auc' : std_auc,
         }
         
-        self.ax.plot(
-            self.roc_data['mean_fpr'],
-            self.roc_data['mean_tpr'],
-            color='b',
-            label=r'Mean ROC (AUC = %0.2f $\pm$ %0.2f)' % (self.roc_data['mean_auc'], self.roc_data['std_auc']),
-            lw=2,
-            alpha=0.8,
-        )
+        axes = [self.ax]
+        if zoom:
+            axes.append(self.inset_ax)
+        
+        for ax in axes:
+            ax.plot(
+                self.roc_data['mean_fpr'],
+                self.roc_data['mean_tpr'],
+                color='b',
+                label=r'Mean ROC (AUC = %0.2f $\pm$ %0.2f)' % (self.roc_data['mean_auc'], self.roc_data['std_auc']),
+                lw=2,
+                alpha=0.8,
+            )
 
-        self.ax.fill_between(
-            self.roc_data['mean_fpr'],
-            self.roc_data['tprs_upper'],
-            self.roc_data['tprs_lower'],
-            color='grey',
-            alpha=0.2,
-            label=r'$\pm$ 1 std. dev.',
-        )
+            ax.fill_between(
+                self.roc_data['mean_fpr'],
+                self.roc_data['tprs_upper'],
+                self.roc_data['tprs_lower'],
+                color='grey',
+                alpha=0.2,
+                label=r'$\pm$ 1 std. dev.',
+            )
 
-        self.ax.set_xlabel='False Positive Rate',
-        self.ax.set_ylabel='True Positive Rate',
-        self.ax.set_title='Mean ROC curve with variability',
+        self.ax.set_xlabel('False Positive Rate', loc='right')
+        self.ax.set_ylabel('True Positive Rate', loc='top')
         self.ax.legend(loc='lower right')
     
         if zoom:
-            self.ax.set_xlim([.001,1.01])
-            self.ax.set_xscale('log')
-            self.ax.set_ylim([.1,1.01])
-            self.ax.set_yscale('log')
+            self.ax.indicate_inset_zoom(self.inset_ax, edgecolor='black')
+            self.inset_ax.get_legend().remove()
+            self.inset_ax.set_xlabel('')
+            self.inset_ax.set_ylabel('')
+            self.inset_ax.set_xlabel('')
+            self.inset_ax.set_ylabel('')
 
         if logy:
             self.ax.set_yscale('log')

@@ -149,7 +149,7 @@ def bdt_inference(dataset_params, model_params, output_params, args):
         if args.plot:
             plot_dir = output_params.output_dir / 'plots'
             plot_dir.mkdir(exist_ok=True)
-            roc.save(plot_dir / 'roc.png')
+            roc.save(plot_dir / 'roc.png', zoom=True)
             feat_imp.save(plot_dir / 'feature_importance.png')
             score_dist.save(plot_dir / 'scores.png')
 
