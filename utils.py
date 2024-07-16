@@ -272,10 +272,10 @@ class ScorePlotterKFold():
         scores_val_sig = scores_val_sig.flatten()
         scores_val_bkg = scores_val_bkg.flatten()
 
-        scores_train_sig_wgts = np.abs(np.ones_like(scores_train_sig) / scores_train_sig.sum())
-        scores_train_bkg_wgts = np.abs(np.ones_like(scores_train_bkg) / scores_train_bkg.sum())
-        scores_val_sig_wgts = np.abs(np.ones_like(scores_val_sig) / scores_val_sig.sum())
-        scores_val_bkg_wgts = np.abs(np.ones_like(scores_val_bkg) / scores_val_bkg.sum())
+        scores_train_sig_wgts = np.abs(np.ones_like(scores_train_sig) / scores_train_sig.size)
+        scores_train_bkg_wgts = np.abs(np.ones_like(scores_train_bkg) / scores_train_bkg.size)
+        scores_val_sig_wgts = np.abs(np.ones_like(scores_val_sig) / scores_val_sig.size)
+        scores_val_bkg_wgts = np.abs(np.ones_like(scores_val_bkg) / scores_val_bkg.size)
 
         train_sig_hist,_ = np.histogram(scores_train_sig, bins=bins, weights=scores_train_sig_wgts)
         train_bkg_hist,_ = np.histogram(scores_train_bkg, bins=bins, weights=scores_train_bkg_wgts)

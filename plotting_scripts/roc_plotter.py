@@ -90,7 +90,7 @@ def main(args):
 
     if args.output:
         output_file = Path(args.output)
-        output_file.mkdir(exist_ok=True)
+        # output_file.mkdir(exist_ok=True)
     else:
         output_file = output_params.output_dir / 'plots' / 'roc.pdf'
 
