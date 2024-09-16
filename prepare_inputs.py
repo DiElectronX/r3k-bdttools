@@ -307,7 +307,7 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--inpath', dest='inpath', type=str, default='/eos/cms/store/group/phys_bphys/DiElectronX/jodedra/FullRunThrough_21_09_23/BDTscoreoutput/outputwithnocuts_08_11_23')
     parser.add_argument('-o', '--outpath', dest='outpath', type=str, default='.')
     parser.add_argument('-l', '--label', dest='label', type=str, default='')
-    parser.add_argument('-f', '--flat', dest='flat', action='store_true')
+    parser.add_argument('-nf', '--not_flat', dest='flat', action='store_false')
     parser.add_argument('-c', '--channel', dest='channel', type=str, default=None)
     args=parser.parse_args()
 
