@@ -88,7 +88,7 @@ def bdt_inference(dataset_params, model_params, output_params, args):
         model = load_external_model(model_params.template_file, debug=args.debug)
         
         # set K-fold validation scheme for retraining model
-        skf = StratifiedKFold(n_splits=3)
+        skf = StratifiedKFold(n_splits=3, random_state=271996, shuffle=True)
 
         # K-fold loop for data measurement
         scores = np.empty(X_data.shape[0], dtype=np.float64)
