@@ -14,7 +14,7 @@ from utils import R3KLogger, ROCPlotterKFold, FeatureImportancePlotterKFold, Sco
 
 
 def bdt_inference(dataset_params, model_params, output_params, args):
-    debug_n_evts = 10000 if args.debug else None
+    debug_n_evts = 100000 if args.debug else None
 
     # configuration for outputs & logging
     os.makedirs(output_params.output_dir, exist_ok=True)
@@ -88,7 +88,7 @@ def bdt_inference(dataset_params, model_params, output_params, args):
         model = load_external_model(model_params.template_file, debug=args.debug)
         
         # set K-fold validation scheme for retraining model
-        skf = StratifiedKFold(n_splits=3, random_state=271996, shuffle=True)
+        skf = StratifiedKFold(n_splits=3)
 
         # K-fold loop for data measurement
         scores = np.empty(X_data.shape[0], dtype=np.float64)
