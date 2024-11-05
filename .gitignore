@@ -5,3 +5,5 @@ __pycache__/
 /**/*.root
 /**/*.pkl
 /**/*.pickle
+/**/*.png
+/**/*.pdf
