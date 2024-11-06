@@ -1,13 +1,26 @@
-name: r3k_bdttools
+name: r3k
 channels:
   - conda-forge
 dependencies:
   - python=3.10
-  - root
-  - numpy
-  - awkward
-  - uproot
+  - arrow
+  - matplotlib=3.9.2
+  - root=6.32.2
   - scikit-learn
-  - xgboost
-  - matplotlib
-  - pyyaml
+  - scipy
+  - uproot-base
+  - vector
+  - voms
+  - xgboost=2.0.3
+  - xrootd
+  - yaml
+  - awkward
+  - hist
+  - mplhep
+  - numpy=2.0.2
+  - pyarrow=18.0.0
+  - regex
+  - tqdm
+  - uproot
+  - pip
+  - certifi

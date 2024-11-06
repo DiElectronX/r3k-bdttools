@@ -11,7 +11,9 @@ model = XGBClassifier(
     scale_pos_weight  = 1.,
     reg_lambda        = 3,
     num_parallel_tree = 7,
-    n_jobs            = 8,
+    n_jobs            = 1,
     objective         = 'binary:logitraw',
     eval_metric       = ['logloss'],
+    seed              = 271996,
+    random_state      = 271996,
 )
