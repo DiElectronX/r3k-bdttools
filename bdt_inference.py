@@ -46,9 +46,10 @@ def bdt_inference(dataset_params, model_params, output_params, args):
             model_params.features, 
             model_params.sample_weights, 
             model_params.preselection, 
-            (dataset_params.b_mass_branch, dataset_params.ll_mass_branch),
+            (dataset_params.b_mass_branch, dataset_params.ll_mass_branch, dataset_params.D0_mass_branch),
             n_evts=debug_n_evts
         )
+        print("X_mc shape from load with preselction",X_mc.shape)
 
         X_data, cutvars_data, weights_data = read_bdt_arrays(
             dataset_params.data_file,
@@ -56,18 +57,30 @@ def bdt_inference(dataset_params, model_params, output_params, args):
             model_params.features,
             None, 
             model_params.preselection, 
-            (dataset_params.b_mass_branch, dataset_params.ll_mass_branch),
+            (dataset_params.b_mass_branch, dataset_params.ll_mass_branch, dataset_params.D0_mass_branch),
             n_evts=debug_n_evts
         )
+        print("x_data shape from load with preselction",X_data.shape)
 
         y_mc = np.ones(X_mc.shape[0])
         y_data = np.zeros(X_data.shape[0])
 
         # create array masks for training
-        mask_sig = np.logical_and(
+        mask_sig_lowq = np.logical_and(
             cutvars_mc[dataset_params.ll_mass_branch] > 1.05, 
             cutvars_mc[dataset_params.ll_mass_branch] < 2.45
         )
+        
+        mask_d0_sig = np.logical_and(
+            cutvars_mc[dataset_params.D0_mass_branch] > 2.000000,
+            cutvars_mc[dataset_params.D0_mass_branch] < 20000000.
+        )
+
+        mask_sig = np.logical_and(mask_sig_lowq, mask_d0_sig)
+        num_trues = np.sum(mask_sig)
+        print("Number of true events mask sig",num_trues)
+
+        
         mask_bkg_lowq2 = np.logical_and(
             cutvars_data[dataset_params.ll_mass_branch] > 1.05, 
             cutvars_data[dataset_params.ll_mass_branch] < 2.45
@@ -81,9 +94,17 @@ def bdt_inference(dataset_params, model_params, output_params, args):
                 cutvars_data[dataset_params.b_mass_branch] > 5.4,
                 cutvars_data[dataset_params.b_mass_branch] < 5.6
             )
-        ) 
-        mask_bkg = np.logical_and(mask_bkg_lowq2, mask_bkg_sideband)
-
+        )
+        
+        mask_d0_bkg = np.logical_and(
+            cutvars_data[dataset_params.D0_mass_branch] > 2.000000,
+            cutvars_data[dataset_params.D0_mass_branch] < 20000000.
+        )
+        
+             
+        mask_bkg = np.logical_and(np.logical_and(mask_bkg_lowq2, mask_bkg_sideband), mask_d0_bkg)
+        num_trues_bkg = np.sum(mask_bkg)
+        print("Number of true events mask bkg",num_trues_bkg)
         # load bdt from template file
         model = load_external_model(model_params.template_file, debug=args.debug)
         
@@ -241,7 +262,7 @@ def bdt_inference(dataset_params, model_params, output_params, args):
 
         # Delete arrays needed for training, save memory
         del X_mc, cutvars_mc, weights_mc, X_data, cutvars_data, weights_data, \
-            y_mc, y_data, mask_sig, mask_bkg_lowq2, mask_bkg_sideband
+            y_mc, y_data, mask_sig, mask_bkg_lowq2, mask_bkg_sideband , mask_d0_sig , mask_d0_bkg, mask_sig_lowq
         gc.collect()
 
         # Save XGBoost model
@@ -327,15 +348,15 @@ def main(args):
 
     if args.debug:
         args.verbose = True
-        output_params.output_dir = Path('outputs/tmp')
+        output_params.output_dir = Path('outputs/Debug')
     else:
         output_params.output_dir = Path(output_params.output_dir)
 
     bdt_inference(dataset_params, model_params ,output_params, args)
 
-    if args.debug:
-        if output_params.output_dir.exists() and output_params.output_dir.is_dir():
-            shutil.rmtree(output_params.output_dir)
+    #if args.debug:
+    #    if output_params.output_dir.exists() and output_params.output_dir.is_dir():
+    #        shutil.rmtree(output_params.output_dir)
 
 
 if __name__ == '__main__':
