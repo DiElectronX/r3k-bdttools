@@ -14,7 +14,8 @@ from glob import glob
 from pathlib import Path
 from sklearn.metrics import auc, RocCurveDisplay
 from logging import DEBUG, INFO, WARNING, ERROR
-
+from sklearn.metrics import roc_curve, RocCurveDisplay
+import numpy as np
 BACKEND = 'np'
 MPL_BACKEND = 'TkAgg'
 # mpl.use(MPL_BACKEND)
@@ -66,8 +67,8 @@ class ROCPlotterKFold():
         self.roc_data = {}
         self.tprs = []
         self.aucs = []
-        self.mean_fpr = np.linspace(0, 1, 100)
-        self.fig, self.ax = plt.subplots(figsize=(8, 6),layout='constrained')
+        self.mean_fpr = np.logspace(-7, 0, 1000)
+        self.fig, self.ax = plt.subplots(figsize=(8, 6), layout='constrained')
 
         self.inset_ax = self.ax.inset_axes(
             [0.25, 0.4, 0.65, 0.3],
@@ -75,10 +76,15 @@ class ROCPlotterKFold():
             # xticklabels=[], yticklabels=[]
         )
 
+
+
+
+
     def add_fold(self, model, X, y):
         self.ifold += 1
 
-        _viz = RocCurveDisplay.from_estimator(
+        # --- Plot ROC using RocCurveDisplay ---
+        RocCurveDisplay.from_estimator(
             model,
             X,
             y,
@@ -86,10 +92,10 @@ class ROCPlotterKFold():
             alpha=0.3,
             lw=1,
             ax=self.ax,
-            plot_chance_level=(self.ifold ==self.kf.get_n_splits() - 1),
+            plot_chance_level=(self.ifold == self.kf.get_n_splits() - 1),
         )
-        self.roc_data[f'KFold {self.ifold}'] = _viz.line_.get_data()
-        _viz = RocCurveDisplay.from_estimator(
+
+        RocCurveDisplay.from_estimator(
             model,
             X,
             y,
@@ -97,13 +103,35 @@ class ROCPlotterKFold():
             alpha=0.3,
             lw=1,
             ax=self.inset_ax,
-            plot_chance_level=(self.ifold ==self.kf.get_n_splits() - 1),
+            plot_chance_level=(self.ifold == self.kf.get_n_splits() - 1),
         )
 
-        _interp_tpr = np.interp(self.mean_fpr, _viz.fpr, _viz.tpr)
-        _interp_tpr[0] = 0.0
-        self.tprs.append(_interp_tpr)
-        self.aucs.append(_viz.roc_auc)
+        # --- Get raw scores and compute full ROC curve ---
+        y_scores = model.predict_proba(X)[:, 1]
+        fpr, tpr, thresholds = roc_curve(y, y_scores)
+
+        # Store full per-fold ROC data including thresholds
+        self.roc_data[f'KFold {self.ifold}'] = {
+            'fpr': fpr,
+            'tpr': tpr,
+            'thresholds': thresholds
+        }
+
+        # Interpolate TPR for mean ROC curve
+        interp_tpr = np.interp(self.mean_fpr, fpr, tpr)
+        interp_tpr[0] = 0.0
+        self.tprs.append(interp_tpr)
+        self.aucs.append(auc(fpr, tpr))
+
+
+
+
+
+
+
+
+
+
 
 
     def save_to_pickle(self, path):
