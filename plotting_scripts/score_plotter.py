@@ -23,9 +23,11 @@ def plot_scores(data, path, show=False, logy=False):
     else:
         all_scores = np.array([])
 
-    max_score = np.ceil(all_scores.max())
     min_score = np.floor(all_scores.min())
-    bins = np.linspace(min_score * 1.1 if min_score < 0 else min_score * 0.9, max_score  * 1.1, int((max_score - min_score) * 2 + 1))
+    max_score = np.ceil(all_scores.max())
+    min_range = min_score * 1.1 if min_score < 0 else (min_score * 0.9 if min_score > 0 else min_score - .1 * max_score)
+    max_range = max_score  * 1.1
+    bins = np.linspace(min_range, max_range, 50)
     bin_centers = 0.5 * (bins[1:] + bins[:-1])
 
     fig, ax = plt.subplots(figsize=(8, 6), layout='constrained')
@@ -118,7 +120,7 @@ def plot_scores(data, path, show=False, logy=False):
     target_indices = [2, 5, 0, 3, 1, 4]
     ordered_handles = [handle for (idx, handle) in sorted(zip(target_indices, handles))]
     ordered_labels = [label for (idx, label) in sorted(zip(target_indices, labels))]
-    ax.legend(ordered_handles, ordered_labels, loc='upper right', fontsize='small')
+    ax.legend(ordered_handles, ordered_labels, loc='upper left', fontsize='small')
 
 
     if show:
