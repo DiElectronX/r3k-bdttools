@@ -3,57 +3,94 @@ import pickle
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 from pathlib import Path
 
-def feature_importance_plotter(data, path, show=False):
-    fig, ax = plt.subplots(figsize=(8, 6),layout='constrained')
+def plot_feature_importance(data, path, show=False):
+    """
+    Main plotting logic for Feature Importance.
+    
+    Args:
+        data (dict): Dictionary containing 'features' (list) and 'feature_imps' (dict of arrays).
+        path (Path or str): Output path for the plot.
+        show (bool): Whether to show the plot interactively.
+    """
 
-    width = 0.25
-    x = np.arange(len(data['features']))
-    for i, (label, vals) in enumerate(data['feature_imps'].items()):
-        offset = width * i
-        rects = ax.barh(x+offset, vals, width, label=label, align='center')
+    fig, ax = plt.subplots(figsize=(10, 8), layout='constrained')
+
+    features = data['features']
+    feature_imps = data['feature_imps']
+    
+    n_folds = len(feature_imps)
+    n_features = len(features)
+    
+    # Calculate bar height and positions to group
+    total_width = 0.8
+    bar_height = total_width / n_folds
+    y_indices = np.arange(n_features)
+    
+    # Generate colors
+    colors = cm.get_cmap('viridis', n_folds)
+
+    for i, (label, vals) in enumerate(feature_imps.items()):
+        # Calculate offset so bars are centered around the tick
+        offset = (i - n_folds/2) * bar_height + bar_height/2
         
-    ax.set_xlabel('Feature Importance', loc='right')
+        ax.barh(
+            y_indices + offset, 
+            vals, 
+            height=bar_height, 
+            label=label, 
+            align='center',
+            alpha=0.8,
+            color=colors(i)
+        )
+        
+    ax.set_xlabel('Feature Importance (Gain)', loc='right')
     ax.set_ylabel('Features', loc='top')
-    ax.set_yticks(x + width, data['features'])
-    ax.legend()
+    
+    # Set Y-ticks to feature names
+    ax.set_yticks(y_indices)
+    ax.set_yticklabels(features)
+    
+    # Invert Y axis so the first feature (often most important) is at the top
+    ax.invert_yaxis() 
+    
+    ax.legend(title='Folds', loc='lower right')
+    ax.grid(axis='x', linestyle='--', alpha=0.5)
 
     if show:
         fig.show()
 
     fig.savefig(path)
+    plt.close(fig)
 
 def main(args):
     with open(args.config, 'r') as f:
         cfg = yaml.safe_load(f)
 
-    dataset_params = argparse.Namespace(**cfg['datasets'])
-    model_params = argparse.Namespace(**cfg['model'])
     output_params = argparse.Namespace(**cfg['output'])
-    
     output_params.output_dir = Path(output_params.output_dir)
 
     if args.input_file:
         data_file = Path(args.input_file)
-        assert data_file.is_file(), 'Cannot find data file'
+        assert data_file.is_file(), f'Cannot find data file: {data_file}'
     else:
         data_file = output_params.output_dir / 'plots' / 'feature_importance.pkl'
-        assert data_file.is_file(), 'Cannot find data file'
+        assert data_file.is_file(), f'Cannot find data file: {data_file}'
 
     if args.output:
-        output_file = Path(args.output)
-        # output_file.mkdir(exist_ok=True)
+        output_file = Path(args.output) / 'feature_importance.pdf'
     else:
         output_file = output_params.output_dir / 'plots' / 'feature_importance.pdf'
 
     if args.label:
-        output_file = output_file.with_stem('_'.join([str(output_file.stem), args.label]))
+        output_file = output_file.with_stem(f"{output_file.stem}_{args.label}")
 
     with open(data_file, 'rb') as f:
         feature_importance_data = pickle.load(f)
 
-    feature_importance_plotter(feature_importance_data, output_file)
+    plot_feature_importance(feature_importance_data, output_file, show=False)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

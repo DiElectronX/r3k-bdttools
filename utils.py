@@ -5,19 +5,19 @@ import pickle
 import importlib.util
 import numpy as np
 import multiprocessing as mp
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 import uproot as ur
-from xgboost import Booster
-from joblib import dump,load
+from joblib import dump, load
 from glob import glob
 from pathlib import Path
-from sklearn.metrics import auc, RocCurveDisplay
+from sklearn.metrics import auc, RocCurveDisplay, roc_curve
 from logging import DEBUG, INFO, WARNING, ERROR
+
+from plotting_scripts.score_plotter import plot_scores
+from plotting_scripts.feature_importance_plotter import plot_feature_importance
+from plotting_scripts.roc_plotter import plot_roc
 
 BACKEND = 'np'
 MPL_BACKEND = 'TkAgg'
-# mpl.use(MPL_BACKEND)
 
 class R3KLogger():
     def __init__(self, filepath, verbose=True, append=False):        
@@ -31,6 +31,11 @@ class R3KLogger():
         self.fout_logger = logging.getLogger('fout_logger')
         self.fout_logger.setLevel(logging.INFO)
         self.formatter = logging.Formatter('%(levelname)s | %(asctime)s | %(message)s')
+
+        # Clear existing handlers to prevent duplicates if logger is re-initialized
+        if self.base_logger.hasHandlers(): self.base_logger.handlers.clear()
+        if self.stdout_logger.hasHandlers(): self.stdout_logger.handlers.clear()
+        if self.fout_logger.hasHandlers(): self.fout_logger.handlers.clear()
 
         self.fh = logging.FileHandler(self.filepath, mode='a' if append else 'w')
         self.fh.setFormatter(self.formatter)
@@ -67,60 +72,39 @@ class ROCPlotterKFold():
         self.tprs = []
         self.aucs = []
         self.mean_fpr = np.linspace(0, 1, 100)
-        self.fig, self.ax = plt.subplots(figsize=(8, 6),layout='constrained')
-
-        self.inset_ax = self.ax.inset_axes(
-            [0.25, 0.4, 0.65, 0.3],
-            xlim=[.001,.8], ylim=[.9, 1],
-            # xticklabels=[], yticklabels=[]
-        )
 
     def add_fold(self, model, X, y):
         self.ifold += 1
+                
+        # Get scores
+        if hasattr(model, "predict_proba"):
+            y_score = model.predict_proba(X)[:, 1]
+        else:
+            y_score = model.decision_function(X)
+            
+        fpr, tpr, _ = roc_curve(y, y_score)
+        roc_auc = auc(fpr, tpr)
 
-        _viz = RocCurveDisplay.from_estimator(
-            model,
-            X,
-            y,
-            name=f'KFold {self.ifold}',
-            alpha=0.3,
-            lw=1,
-            ax=self.ax,
-            plot_chance_level=(self.ifold ==self.kf.get_n_splits() - 1),
-        )
-        self.roc_data[f'KFold {self.ifold}'] = _viz.line_.get_data()
-        _viz = RocCurveDisplay.from_estimator(
-            model,
-            X,
-            y,
-            name=f'ROC fold {self.ifold}',
-            alpha=0.3,
-            lw=1,
-            ax=self.inset_ax,
-            plot_chance_level=(self.ifold ==self.kf.get_n_splits() - 1),
-        )
+        # Interpolate TPR
+        interp_tpr = np.interp(self.mean_fpr, fpr, tpr)
+        interp_tpr[0] = 0.0
+        
+        # Store data
+        self.roc_data[f'Fold {self.ifold}'] = (fpr, tpr)
+        self.tprs.append(interp_tpr)
+        self.aucs.append(roc_auc)
 
-        _interp_tpr = np.interp(self.mean_fpr, _viz.fpr, _viz.tpr)
-        _interp_tpr[0] = 0.0
-        self.tprs.append(_interp_tpr)
-        self.aucs.append(_viz.roc_auc)
-
-
-    def save_to_pickle(self, path):
-        new_path = path.with_suffix('.pkl')
-        with open(new_path,'wb') as pkl_file:
-            pickle.dump(self.roc_data, pkl_file)
-
-
-    def save(self, path, show=False, logy=False, inset=False):
+    def agg_data(self):
+        # Calculate aggregate stats before saving
         mean_tpr = np.mean(self.tprs, axis=0)
         mean_tpr[-1] = 1.0
-        mean_auc = auc(self.mean_fpr, mean_tpr)
+        mean_auc = np.mean(self.aucs) # Simple mean of AUCs
         std_auc = np.std(self.aucs)
         std_tpr = np.std(self.tprs, axis=0)
         tprs_upper = np.minimum(mean_tpr + std_tpr, 1)
         tprs_lower = np.maximum(mean_tpr - std_tpr, 0)
 
+        # Update dict with aggregates
         self.roc_data.update({
             'mean_fpr' : self.mean_fpr,
             'mean_tpr' : mean_tpr,
@@ -129,51 +113,23 @@ class ROCPlotterKFold():
             'mean_auc' : mean_auc,
             'std_auc' : std_auc,
         })
+
+    def save_to_pickle(self, path):
+        self.agg_data()
+        assert self.roc_data, 'No data available'
+
+        path = Path(path)
+        new_path = path.with_suffix('.pkl')
         
-        axes = [self.ax]
-        if inset:
-            axes.append(self.inset_ax)
-        
-        for ax in axes:
-            ax.plot(
-                self.roc_data['mean_fpr'],
-                self.roc_data['mean_tpr'],
-                color='b',
-                label=r'Mean ROC (AUC = %0.2f $\pm$ %0.2f)' % (self.roc_data['mean_auc'], self.roc_data['std_auc']),
-                lw=2,
-                alpha=0.8,
-            )
+        with open(new_path,'wb') as pkl_file:
+            pickle.dump(self.roc_data, pkl_file)
 
-            ax.fill_between(
-                self.roc_data['mean_fpr'],
-                self.roc_data['tprs_upper'],
-                self.roc_data['tprs_lower'],
-                color='grey',
-                alpha=0.2,
-                label=r'$\pm$ 1 std. dev.',
-            )
+    def save(self, path):
+        self.agg_data()
+        assert self.roc_data, 'No data available'
 
-        self.ax.set_xlabel('False Positive Rate', loc='right')
-        self.ax.set_ylabel('True Positive Rate', loc='top')
-        self.ax.legend(loc='lower right')
-    
-        if inset:
-            self.ax.indicate_inset_zoom(self.inset_ax, edgecolor='black')
-            self.inset_ax.get_legend().remove()
-            self.inset_ax.set_xlabel('')
-            self.inset_ax.set_ylabel('')
-            self.inset_ax.set_xlabel('')
-            self.inset_ax.set_ylabel('')
-
-        if logy:
-            self.ax.set_yscale('log')
-            self.ax.set_ylim([1E-5,2.])
-
-        if show:
-            self.fig.show()
-        
         self.save_to_pickle(path)
-        self.fig.savefig(path)
+        plot_roc(self.roc_data, path)
 
 
 class FeatureImportancePlotterKFold():
@@ -182,235 +138,206 @@ class FeatureImportancePlotterKFold():
         self.ifold = 0
         self.features = features if features else []
         self.feature_imps = {}
-        self.fig, self.ax = plt.subplots(figsize=(8, 6),layout='constrained')
-
+        self.feature_data = None
 
     def add_fold(self, model):
         self.ifold += 1
-
         if not self.features:
-            self.features = range(len(model.feature_importances_))
+            self.features = [f'Feat {i}' for i in range(len(model.feature_importances_))]
+        
+        self.feature_imps[f'Fold {self.ifold}'] = model.feature_importances_
 
-        self.feature_imps[f'KFold {self.ifold}'] = model.feature_importances_
-
+    def agg_data(self):
+        if not self.feature_data:
+            self.feature_data = {
+                'features': self.features, 
+                'feature_imps': self.feature_imps
+            }
 
     def save_to_pickle(self, path):
+        self.agg_data()
+        assert self.feature_data, 'No data available'
+
+        path = Path(path)
         new_path = path.with_suffix('.pkl')
+        
         with open(new_path,'wb') as pkl_file:
-            pickle.dump(self.feature_imp_data, pkl_file)
+            pickle.dump(self.feature_data, pkl_file)
 
-
-    def save(self, path, show=False):
-        self.feature_imp_data = {
-            'features' : self.features,
-            'feature_imps' : self.feature_imps,
-        }
-
-        width = 0.25
-        x = np.arange(len(self.feature_imp_data['features']))
-        for i, (label, vals) in enumerate(self.feature_imp_data['feature_imps'].items()):
-            offset = width * i
-            rects = self.ax.barh(x+offset, vals, width, label=label, align='center')
-            
-        self.ax.set_xlabel('Feature Importance', loc='right')
-        self.ax.set_ylabel('Features', loc='top')
-        self.ax.set_yticks(x + width, self.feature_imp_data['features'])
-        self.ax.legend()
-
-        if show:
-            self.fig.show()
+    def save(self, path):
+        self.agg_data()
+        assert self.feature_data, 'No data available'
 
         self.save_to_pickle(path)
-        self.fig.savefig(path)
+        plot_feature_importance(self.feature_data, path)
 
 
 class ScorePlotterKFold():
-    def __init__(self, kf, features=None):
+    def __init__(self, kf):
         self.kf = kf
         self.ifold = 0
         self.score_data = {}
-        self.fig, self.ax = plt.subplots(figsize=(8, 6),layout='constrained')
 
-
-    def add_fold(self, model, X_train, y_train, X_val, y_val):
+    def add_fold(self, model, X_train, y_train, X_val, y_val, w_train=None, w_val=None):
         self.ifold += 1
-
         scores_train = model.predict_proba(X_train)[:,1].astype(np.float64)
         scores_val = model.predict_proba(X_val)[:,1].astype(np.float64)
 
-        self.score_data[f'KFold {self.ifold}'] = {
+        # Handle case where weights = 1
+        if w_train is None: w_train = np.ones(len(y_train))
+        if w_val is None: w_val = np.ones(len(y_val))
+
+        self.score_data[f'Fold {self.ifold}'] = {
             'scores_train_sig' : scores_train[y_train==1],
             'scores_train_bkg' : scores_train[y_train==0],
             'scores_val_sig' : scores_val[y_val==1],
             'scores_val_bkg' : scores_val[y_val==0],
+            'weights_train_sig' : w_train[y_train==1],
+            'weights_train_bkg' : w_train[y_train==0],
+            'weights_val_sig' : w_val[y_val==1],
+            'weights_val_bkg' : w_val[y_val==0],
         }
 
-
     def save_to_pickle(self, path):
+        assert self.score_data, 'No data available'
+
+        path = Path(path)
         new_path = path.with_suffix('.pkl')
         with open(new_path,'wb') as pkl_file:
             pickle.dump(self.score_data, pkl_file)
 
-
     def save(self, path, show=False):
-        bins = np.linspace(-5,5,40)
-        bin_centers = 0.5*(bins[1:] + bins[:-1])
+        assert self.score_data, 'No data available'
+        
+        self.save_to_pickle(path)    
+        plot_scores(self.score_data, path, show=show)
 
-        scores_train_sig = np.array([])
-        scores_train_bkg = np.array([])
-        scores_val_sig = np.array([])
-        scores_val_bkg = np.array([])
 
-        for i, (label, vals) in enumerate(self.score_data.items()):
-            scores_train_sig = np.append(scores_train_sig, vals['scores_train_sig'])
-            scores_train_bkg = np.append(scores_train_bkg, vals['scores_train_bkg'])
-            scores_val_sig = np.append(scores_val_sig, vals['scores_val_sig'])
-            scores_val_bkg = np.append(scores_val_bkg, vals['scores_val_bkg'])
+# --- Helper Functions ---
 
-        scores_train_sig = scores_train_sig.flatten()
-        scores_train_bkg = scores_train_bkg.flatten()
-        scores_val_sig = scores_val_sig.flatten()
-        scores_val_bkg = scores_val_bkg.flatten()
-
-        scores_train_sig_wgts = np.abs(np.ones_like(scores_train_sig) / scores_train_sig.size)
-        scores_train_bkg_wgts = np.abs(np.ones_like(scores_train_bkg) / scores_train_bkg.size)
-        scores_val_sig_wgts = np.abs(np.ones_like(scores_val_sig) / scores_val_sig.size)
-        scores_val_bkg_wgts = np.abs(np.ones_like(scores_val_bkg) / scores_val_bkg.size)
-
-        train_sig_hist,_ = np.histogram(scores_train_sig, bins=bins, weights=scores_train_sig_wgts)
-        train_bkg_hist,_ = np.histogram(scores_train_bkg, bins=bins, weights=scores_train_bkg_wgts)
-        val_sig_hist,_ = np.histogram(scores_val_sig, bins=bins, weights=scores_val_sig_wgts)
-        val_bkg_hist,_ = np.histogram(scores_val_bkg, bins=bins, weights=scores_val_bkg_wgts)
-
-        train_sig_hist_err = np.sqrt(np.histogram(scores_train_sig, bins=bins, weights=scores_train_sig_wgts**2)[0])
-        train_bkg_hist_err = np.sqrt(np.histogram(scores_train_bkg, bins=bins, weights=scores_train_bkg_wgts**2)[0])
-        val_sig_hist_err = np.sqrt(np.histogram(scores_val_sig, bins=bins, weights=scores_val_sig_wgts**2)[0])
-        val_bkg_hist_err = np.sqrt(np.histogram(scores_val_bkg, bins=bins, weights=scores_val_bkg_wgts**2)[0])
-
-        self.ax.errorbar(bin_centers, train_sig_hist, yerr=train_sig_hist_err, marker = '', drawstyle = 'steps-mid', label='Train, Signal')
-        self.ax.errorbar(bin_centers, train_bkg_hist, yerr=train_bkg_hist_err, marker = '', drawstyle = 'steps-mid', label='Train, Background')
-        self.ax.errorbar(bin_centers, val_sig_hist, yerr=val_sig_hist_err, marker = 'o', fillstyle='none', linestyle = '', label='Validation, Signal')
-        self.ax.errorbar(bin_centers, val_bkg_hist, yerr=val_bkg_hist_err, marker = 'o', fillstyle='none', linestyle = '', label='Validation, Background')
-            
-        self.ax.set_xlabel('BDT Score', loc='right')
-        self.ax.set_ylabel('A.U.', loc='top')
-        self.ax.legend()
-
-        if show:
-            self.fig.show()
-
-        self.save_to_pickle(path)
-        self.fig.savefig(path)
+def save_kfold_model(model, output_dir, fold_idx, prefix='model_fold'):
+    """Helper to save a model for a specific fold in JSON format.
+    
+    Usage in loop: 
+        save_kfold_model(model, output_params.output_dir, fold)
+    """
+    out_path = Path(output_dir) / f'{prefix}_{fold_idx}.json'
+    model.save_model(out_path)
 
 
 def read_bdt_arrays(file, tree, features, weights_branch=None, preselection=None, cutvar_branches=('Bmass', 'Mll'), n_evts=None):
-    all_branches = list(set(features) | set(cutvar_branches))
-    if weights_branch:
-        all_branches += [weights_branch]
+    """Read selected branches from a ROOT tree efficiently."""
+    branch_list = list(set(features + list(cutvar_branches)))
+    if weights_branch and weights_branch not in branch_list:
+        branch_list.append(weights_branch)
 
     with ur.open(file) as f:
-        all_arrays = f[tree].arrays(all_branches, cut=preselection, entry_stop=n_evts, library=BACKEND)
+        tree_obj = f[tree]
+        arrays = tree_obj.arrays(branch_list, cut=preselection, entry_stop=n_evts, library=BACKEND)
 
-    features_array = np.stack([all_arrays[k] for k in features]).T
-    cutvars_dict  = {k:all_arrays[k] for k in cutvar_branches}
-    weights_array  = all_arrays[weights_branch] if weights_branch else np.ones(features_array.shape[0])
+    try:
+        first_key = next(iter(arrays))
+        n_events = len(arrays[first_key])
+    except StopIteration:
+        return np.empty((0, len(features)), dtype=np.float32), {k: np.empty(0) for k in cutvar_branches}, np.empty(0, dtype=np.float32)
 
-    return features_array, cutvars_dict, weights_array
+    X = np.empty((n_events, len(features)), dtype=np.float32)
+    for i, feat in enumerate(features):
+        if feat not in arrays:
+            raise KeyError(f"Feature '{feat}' missing in {file}")
+        X[:, i] = np.asarray(arrays[feat], dtype=np.float32)
+    X = np.ascontiguousarray(X)
+
+    cutvars_dict = {k: np.asarray(arrays[k]) for k in cutvar_branches}
+    
+    if weights_branch and weights_branch in arrays:
+        weights_array = np.asarray(arrays[weights_branch], dtype=np.float32)
+    else:
+        weights_array = np.ones(n_events, dtype=np.float32)
+
+    return X, cutvars_dict, weights_array
 
 
 def save_bdt_arrays(input_file, input_tree, output_file, output_tree, output_branch_names, score_branch, scores, idxs=None, preselection=None, n_evts=None):    
     with ur.open(input_file) as f_in:
-        output_branches = f_in[input_tree].arrays(output_branch_names, cut=preselection, entry_stop=n_evts, library=BACKEND)
+        tree_obj = f_in[input_tree]
+        output_branches = tree_obj.arrays(output_branch_names, cut=preselection, entry_stop=n_evts, library=BACKEND)
 
-        if idxs is not None:
-            for br in output_branches.values():
-                br = br[idxs]
+    if idxs is not None:
+        for k, v in list(output_branches.items()):
+            output_branches[k] = np.asarray(v)[idxs]
 
-        output_branches[score_branch] = scores
-        output_branches['trigger_OR'] = np.ones_like(scores)
+    scores = np.asarray(scores)
+    output_branches[score_branch] = scores
 
-        with ur.recreate(output_file, compression=ur.LZMA(9)) as f_out:
-            f_out[output_tree] = output_branches
+    if 'trigger_OR' not in output_branches:
+        output_branches['trigger_OR'] = np.ones(scores.shape[0], dtype=np.uint8)
+
+    with ur.recreate(output_file, compression=ur.LZMA(1)) as f_out:
+        f_out[output_tree] = output_branches
 
 
 def load_external_model(filepath, debug=False, model_name='model'):
-    spec = importlib.util.spec_from_file_location('tmp_module', filepath)
-    source_module = importlib.util.module_from_spec(spec)
-    sys.modules['tmp_module'] = source_module
-    spec.loader.exec_module(source_module)
-    model = getattr(source_module,model_name)
+    p = Path(filepath)
+    if p.suffix in ('.pkl', '.joblib'):
+        model = load(str(p))
+    elif p.suffix in ('.json', '.model', '.bin', '.txt'):
+        try:
+            from xgboost import Booster as XGBBooster
+            b = XGBBooster()
+            b.load_model(str(p))
+            return b
+        except Exception:
+            model = load(str(p)) if p.exists() else None
+    elif p.suffix == '.py':
+        spec = importlib.util.spec_from_file_location('tmp_module', filepath)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules['tmp_module'] = module
+        spec.loader.exec_module(module)
+        if hasattr(module, model_name):
+            model = getattr(module, model_name)
+        elif hasattr(module, 'build_model'):
+            model = module.build_model()
+        else:
+            raise ImportError(f"No attribute '{model_name}' in {filepath}")
+    else:
+        try:
+            model = load(str(p))
+        except Exception as e:
+            raise ImportError(f"Could not load model {filepath}: {e}")
 
-    assert callable(getattr(model, 'fit')) and callable(getattr(model, 'predict_proba'))
+    if hasattr(model, 'predict_proba'):
+        if debug and hasattr(model, 'set_params'):
+            try:
+                model.set_params(n_estimators=5)
+            except Exception:
+                pass
+        return model
 
-    if debug:
-        model.set_params(**{'n_estimators' : 5})
+    # Try returning XGBoost Booster if not sklearn-wrapped
+    try:
+        from xgboost import Booster as XGBBooster
+        if isinstance(model, XGBBooster): return model
+    except Exception:
+        pass
+        
+    raise AssertionError('Loaded object does not expose predict_proba and is not an XGBoost Booster')
 
-    return model
 
 def get_branches(output_params, branch_names):
     output_branches = []
     for key in branch_names:
-        if output_params.output_branches[key] is not None:
-            output_branches.extend(output_params.output_branches[key])
-    
+        vals = output_params.output_branches.get(key)
+        if not vals: continue
+        for v in vals:
+            if v not in output_branches: output_branches.append(v)
     return output_branches
-
-
-def save_model(output_name, model, args, formats, logger):
-    if '.pkl' in formats:
-        name = os.path.join(args.outdir, output_name+'.pkl')
-        dump(model, name)
-        if logger:
-            logger.log(f'Saving Model {name}')
-    if '.text' in formats:
-        name = os.path.join(args.outdir, output_name+'.text')
-        booster = model.get_booster()
-        booster.dump_model(name, dump_format='text')
-        if logger:
-            logger.log(f'Saving Model {name}')
-    if '.json' in formats:
-        name = os.path.join(args.outdir, output_name+'.json')
-        model.save_model(name)
-        if logger:
-            logger.log(f'Saving Model {name}')
-    if '.txt' in formats:
-        name = os.path.join(args.outdir, output_name+'.txt')
-        model.save_model(name)
-        if logger:
-            logger.log(f'Saving Model {name}')
-
-
-def load_bdt(args):
-    args.filepath = args.model if args.format in args.model else args.model+args.format
-    assert os.path.exists(args.filepath)
-
-    if ('pkl' in args.format) or ('pickle' in args.format):
-        return load(args.filepath)
-    else:
-        bdt = Booster()
-        bdt.load_model(args.filepath)
-        return bdt 
-
-
-def preprocess_files(input_files, nparts, total):
-    filelist = [input_files] if input_files.endswith('.root') else glob(input_files+'/**/*.root',recursive=True)[:total]
-    if nparts==1:
-        outfiles = filelist
-    else:
-        outfiles = np.array_split(np.array(filelist), nparts if nparts!=-1 else mp.cpu_count())
-
-    if not outfiles: 
-        raise ValueError('Invalid input path/file')
-    return outfiles
-
-
-def check_rm_files(files=[]):
-    for fl in files:
-        if os.path.isfile(fl):
-            os.system('rm '+fl)
 
 
 def edit_filename(path, prefix='', suffix=''):
     path = Path(path)
-    path = path.with_stem('_'.join(filter(None, [prefix, str(path.stem), suffix])))
-    return path
+    new_stem = '_'.join(filter(None, [prefix, str(path.stem), suffix]))
+    try:
+        return path.with_stem(new_stem)
+    except AttributeError:
+        return path.with_name(new_stem + path.suffix)
