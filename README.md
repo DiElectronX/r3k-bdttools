@@ -197,3 +197,46 @@ python plotting_scripts/score_plotter.py \
     -f <output_dir>/plots/scores.pkl \
     -o <output_dir>/plots/new_scores.pdf
 ```
+
+-----
+
+## 5\. Quick Inference Tool
+
+A lightweight script `quick_inference.py` is provided to run a trained model on arbitrary ROOT files (or simply rename branches) without invoking the full training pipeline.
+
+It features **Smart Branch Lookup**, allowing it to automatically map variables (e.g., `L2iso` $\to$ `BToKEE_l2_iso04`) and calculate math expressions (e.g., `L2iso/L2pt`) on the fly.
+
+### A. Run Inference
+
+Applies a saved XGBoost model to a ROOT file and saves a new file with the score branch added.
+
+```bash
+python quick_inference.py \
+    -i <input_file.root> \
+    -o <output_dir> \
+    -m <model_file.json> \
+    -l _wScores \
+    -mc  # Use this flag if input is Monte Carlo (reads weights)
+```
+
+  * `-i`: Input ROOT file.
+  * `-o`: Output directory.
+  * `-m`: Path to the saved XGBoost model (JSON).
+  * `-l`: Suffix label for the output filename (default: `_wScores`).
+  * `-mc`: Flag to indicate MC files (ensures weight branches are read/saved).
+  * `--out-tree`: (Optional) Name of the tree in the output file (default: `mytree`).
+
+### B. Rename Only (No Inference)
+
+Creates a lightweight copy of the file with branches renamed to the standard analysis names, without running any model.
+
+```bash
+python quick_inference.py \
+    -i <input_file.root> \
+    -o <output_dir> \
+    --just-rename \
+    --label _wRenames
+```
+
+  * `--just-rename`: Skips model loading and inference.
+  * `--label`: Recommended to change this to `_wRenames` or similar.
