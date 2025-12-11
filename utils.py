@@ -19,6 +19,47 @@ from plotting_scripts.roc_plotter import plot_roc
 BACKEND = 'np'
 MPL_BACKEND = 'TkAgg'
 
+RENAME_MAPPING = {
+    "BToKEE_mll_fullfit": "Mll",
+    "BToKEE_fit_pt": "Bpt",
+    "BToKEE_fit_mass": "Bmass",
+    "BToKEE_fit_cos2D": "Bcos",
+    "BToKEE_svprob": "Bprob",
+    "BToKEE_fit_massErr": "BmassErr",
+    "BToKEE_b_iso04": "Biso",
+    "BToKEE_l_xy_sig": "BsLxy",
+    "BToKEE_fit_l1_pt": "L1pt",
+    "BToKEE_fit_l1_eta": "L1eta",
+    "BToKEE_l1_iso04": "L1iso",
+    "BToKEE_l1_PFMvaID_retrained": "L1id",
+    "BToKEE_fit_l2_pt": "L2pt",
+    "BToKEE_fit_l2_eta": "L2eta",
+    "BToKEE_l2_iso04": "L2iso",
+    "BToKEE_l2_PFMvaID_retrained": "L2id",
+    "BToKEE_fit_k_pt": "Kpt",
+    "BToKEE_k_iso04": "Kiso",
+    "BToKEE_fit_k_eta": "Keta",
+    "BToKEE_lKDz": "LKdz",
+    "BToKEE_lKDr": "LKdr",
+    "BToKEE_l1l2Dr": "L1L2dr",
+    "BToKEE_k_svip3d": "Kip3d",
+    "BToKEE_k_svip3d_err": "Kip3dErr",
+    "BToKEE_l1_iso04_dca": "L1isoDca",
+    "BToKEE_l2_iso04_dca": "L2isoDca",
+    "BToKEE_k_iso04_dca": "KisoDca",
+    "BToKEE_b_iso04_dca": "BisoDca",
+    "BToKEE_k_dca_sig": "KsDca",
+    "BToKEE_D0_mass_LepToPi_KToK": "KLmassD0_1",
+    "BToKEE_D0_mass_LepToK_KToPi": "KLmassD0_2",
+    "BToKEE_p_assymetry": "Passymetry",
+    "total_weight": "total_weight",
+    "PV_npvs": "Npv",
+    "Presel_BDT": "presel_bdt",
+    "trigger_sf_value": "trigger_sf_value",
+    "trigger_sf_error": "trigger_sf_error",
+    "candidate": "BToKEE"
+}
+
 class R3KLogger():
     def __init__(self, filepath, verbose=True, append=False):        
         self.filepath = filepath
@@ -216,24 +257,48 @@ class ScorePlotterKFold():
 # --- Helper Functions ---
 
 def save_kfold_model(model, output_dir, fold_idx, prefix='model_fold'):
-    """Helper to save a model for a specific fold in JSON format.
-    
-    Usage in loop: 
-        save_kfold_model(model, output_params.output_dir, fold)
-    """
     out_path = Path(output_dir) / f'{prefix}_{fold_idx}.json'
     model.save_model(out_path)
 
 
 def read_bdt_arrays(file, tree, features, weights_branch=None, preselection=None, cutvar_branches=('Bmass', 'Mll'), n_evts=None):
-    """Read selected branches from a ROOT tree efficiently."""
     branch_list = list(set(features + list(cutvar_branches)))
     if weights_branch and weights_branch not in branch_list:
         branch_list.append(weights_branch)
 
     with ur.open(file) as f:
-        tree_obj = f[tree]
-        arrays = tree_obj.arrays(branch_list, cut=preselection, entry_stop=n_evts, library=BACKEND)
+        # Handle tree cycle numbers
+        keys = {k.split(';')[0]: k for k in f.keys()} 
+        
+        # Find valid tree name
+        if tree in keys:
+            tree_name = keys[tree] # Get exact name including cycle if needed
+        elif 'Events' in keys:
+            tree_name = keys['Events']
+        elif 'mytree' in keys:
+            tree_name = keys['mytree']
+        else:
+            raise KeyError(f"Tree '{tree}' not found in {file}. Available: {list(keys.keys())}")
+            
+        tree_obj = f[tree_name]
+        
+        # Allow branch aliases for different naming schemes
+        available_branches = {b.decode('utf-8') if isinstance(b, bytes) else b for b in tree_obj.keys()}
+        aliases = {}
+        
+        for orig, desired in RENAME_MAPPING.items():
+            # Only create alias if desired name is MISSING and Original is PRESENT
+            if desired not in available_branches and orig in available_branches:
+                aliases[desired] = orig
+
+        # Read arrays with aliases
+        arrays = tree_obj.arrays(
+            branch_list, 
+            cut=preselection, 
+            aliases=aliases,
+            entry_stop=n_evts, 
+            library=BACKEND
+        )
 
     try:
         first_key = next(iter(arrays))
@@ -244,7 +309,7 @@ def read_bdt_arrays(file, tree, features, weights_branch=None, preselection=None
     X = np.empty((n_events, len(features)), dtype=np.float32)
     for i, feat in enumerate(features):
         if feat not in arrays:
-            raise KeyError(f"Feature '{feat}' missing in {file}")
+            raise KeyError(f"Feature '{feat}' missing in {file} (checked aliases and formulas)")
         X[:, i] = np.asarray(arrays[feat], dtype=np.float32)
     X = np.ascontiguousarray(X)
 
@@ -260,8 +325,34 @@ def read_bdt_arrays(file, tree, features, weights_branch=None, preselection=None
 
 def save_bdt_arrays(input_file, input_tree, output_file, output_tree, output_branch_names, score_branch, scores, idxs=None, preselection=None, n_evts=None):    
     with ur.open(input_file) as f_in:
-        tree_obj = f_in[input_tree]
-        output_branches = tree_obj.arrays(output_branch_names, cut=preselection, entry_stop=n_evts, library=BACKEND)
+        # Handle tree cycle numbers
+        keys = {k.split(';')[0]: k for k in f_in.keys()}
+
+        # Find valid tree name        
+        if input_tree in keys:
+            valid_tree_name = keys[input_tree]
+        elif 'Events' in keys:
+            valid_tree_name = keys['Events']
+        elif 'mytree' in keys:
+            valid_tree_name = keys['mytree']
+        else:
+            raise KeyError(f"Tree '{input_tree}' not found in {input_file}. Available: {list(keys.keys())}")
+            
+        tree_obj = f_in[valid_tree_name]
+
+        available_branches = {b.decode('utf-8') if isinstance(b, bytes) else b for b in tree_obj.keys()}
+        aliases = {}
+        for orig, desired in RENAME_MAPPING.items():
+            if desired not in available_branches and orig in available_branches:
+                aliases[desired] = orig
+
+        output_branches = tree_obj.arrays(
+            output_branch_names, 
+            cut=preselection, 
+            aliases=aliases,
+            entry_stop=n_evts, 
+            library=BACKEND
+        )
 
     if idxs is not None:
         for k, v in list(output_branches.items()):

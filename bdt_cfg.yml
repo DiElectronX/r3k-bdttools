@@ -1,31 +1,30 @@
 datasets:
-  data_file: /eos/cms/store/group/phys_bphys/DiElectronX/nzipper/bdt_input_files/xval_data_v2.root
-  rare_file: /eos/cms/store/group/phys_bphys/DiElectronX/nzipper/bdt_input_files/xval_rare_v2.root
-  other_data_files: 
-    same_sign_electrons: /eos/cms/store/group/phys_bphys/DiElectronX/nzipper/bdt_input_files/xval_data_sameSignElectrons_v2.root
-  other_mc_files: 
-    jpsi: /eos/cms/store/group/phys_bphys/DiElectronX/nzipper/bdt_input_files/xval_jpsi_v2.root
-    psi2s: /eos/cms/store/group/phys_bphys/DiElectronX/nzipper/bdt_input_files/xval_psi2s_v2.root
-    kstar_jpsi_pion: /eos/cms/store/group/phys_bphys/DiElectronX/nzipper/bdt_input_files/measurement_kstar_jpsi_pion.root
-    kstar_jpsi_kaon: /eos/cms/store/group/phys_bphys/DiElectronX/nzipper/bdt_input_files/measurement_kstar_jpsi_kaon.root
-    k0star_jpsi_pion: /eos/cms/store/group/phys_bphys/DiElectronX/nzipper/bdt_input_files/measurement_k0star_jpsi_pion.root
-    k0star_jpsi_kaon: /eos/cms/store/group/phys_bphys/DiElectronX/nzipper/bdt_input_files/measurement_k0star_jpsi_kaon.root
-    chic1_jpsi_kaon: /eos/cms/store/group/phys_bphys/DiElectronX/nzipper/bdt_input_files/measurement_chic1_jpsi_kaon.root
-    jpsipi_jpsi_pion: /eos/cms/store/group/phys_bphys/DiElectronX/nzipper/bdt_input_files/measurement_jpsipi_jpsi_pion.root
-    kstar_psi2s_pion: /eos/cms/store/group/phys_bphys/DiElectronX/nzipper/bdt_input_files/measurement_kstar_psi2s_pion.root
-    k0star_psi2s_pion: /eos/cms/store/group/phys_bphys/DiElectronX/nzipper/bdt_input_files/measurement_k0star_psi2s_pion.root
-    k0star_psi2s_kaon: /eos/cms/store/group/phys_bphys/DiElectronX/nzipper/bdt_input_files/measurement_k0star_psi2s_kaon.root
-    kstar_pion: /eos/cms/store/group/phys_bphys/DiElectronX/nzipper/bdt_input_files/measurement_kstar_pion.root
-    k0star_pion: /eos/cms/store/group/phys_bphys/DiElectronX/nzipper/bdt_input_files/measurement_k0star_pion.root
-    k0star_kaon: /eos/cms/store/group/phys_bphys/DiElectronX/nzipper/bdt_input_files/measurement_k0star_kaon.root
+  data_file: /new/remote/path/\2
+  rare_file: /new/remote/path/\2
+  other_data_files:
+    same_sign_electrons: /new/remote/path/\2
+  other_mc_files:
+    jpsi: /new/remote/path/\2
+    psi2s: /new/remote/path/\2
+    kstar_jpsi_pion: /new/remote/path/\2
+    kstar_jpsi_kaon: /new/remote/path/\2
+    k0star_jpsi_pion: /new/remote/path/\2
+    k0star_jpsi_kaon: /new/remote/path/\2
+    chic1_jpsi_kaon: /new/remote/path/\2
+    jpsipi_jpsi_pion: /new/remote/path/\2
+    kstar_psi2s_pion: /new/remote/path/\2
+    k0star_psi2s_pion: /new/remote/path/\2
+    k0star_psi2s_kaon: /new/remote/path/\2
+    kstar_pion: /new/remote/path/\2
+    k0star_pion: /new/remote/path/\2
+    k0star_kaon: /new/remote/path/\2
   tree_name: mytree
   b_mass_branch: Bmass
   ll_mass_branch: Mll
-
 model:
   template_file: model_template.py
   features: [Bprob, BsLxy, L2iso/L2pt, Bcos, Kiso/Kpt, LKdz, LKdr, Passymetry, Kip3d/Kip3dErr, L1id, L2id]
-  feature_labels: 
+  feature_labels:
     - "$prob({\\rm SV})$"
     - "$L_{xy}/\\sigma_{L_{xy}}$"
     - "$I_{\\Delta R=0.4}^{\\rm rel}(e_2)/p_{T}(e_2)$"
@@ -39,12 +38,11 @@ model:
     - "ID($e_2$)"
   sample_weights: trig_wgt
   preselection: (KLmassD0 > 2.)
-
 output:
   output_dir: /Users/noahzipper/Desktop/Research/Rk/BDT_Studies/r3k-bdttools/outputs/6_26_24
   score_branch: bdt_score
-  output_branches: 
+  output_branches:
     common: [event, Bmass, Mll]
-    data: 
+    data:
     mc: [trig_wgt]
   log_file: log.txt
