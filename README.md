@@ -215,14 +215,14 @@ python quick_inference.py \
     -i <input_file.root> \
     -o <output_dir> \
     -m <model_file.json> \
-    -l _wScores \
+    -l wScores \
     -mc  # Use this flag if input is Monte Carlo (reads weights)
 ```
 
   * `-i`: Input ROOT file.
   * `-o`: Output directory.
   * `-m`: Path to the saved XGBoost model (JSON).
-  * `-l`: Suffix label for the output filename (default: `_wScores`).
+  * `-l`: Suffix label for the output filename (default: `wScores`).
   * `-mc`: Flag to indicate MC files (ensures weight branches are read/saved).
   * `--out-tree`: (Optional) Name of the tree in the output file (default: `mytree`).
 
