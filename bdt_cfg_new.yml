@@ -1,0 +1,64 @@
+datasets:
+  # Main Data and Signal
+  data_file: /eos/cms/store/group/phys_bphys/DiElectronX/jfratice/r3k-analysis/output/r3k-int/run4/data/test_output_mix/data/data2022_skimmed_mix.root
+  rare_file: /eos/cms/store/group/phys_bphys/DiElectronX/jfratice/r3k-analysis/output/r3k-int/run4/data/test_output_mix/lowq2/Bu_kaon_lowq_resonant_skimmed_mix.root
+  
+  # Extra Data
+  other_data_files: 
+    same_sign_electrons: /eos/cms/store/group/phys_bphys/DiElectronX/jfratice/r3k-analysis/output/r3k-int/run4/data/test_output_mix/data/ssdata2022_skimmed_mix.root
+  
+  # Control Channels & Backgrounds
+  other_mc_files: 
+    # Primary Control Channels
+    jpsi_jpsi: /eos/cms/store/group/phys_bphys/DiElectronX/jfratice/r3k-analysis/output/r3k-int/run4/data/test_output_mix/jpsi/Bu_kaon_jpsi_resonant_skimmed_mix.root
+    jpsi_lowq2: /eos/cms/store/group/phys_bphys/DiElectronX/jfratice/r3k-analysis/output/r3k-int/run4/data/test_output_mix/lowq2/Bu_kaon_jpsi_resonant_skimmed_mix.root
+    psi2s: /eos/cms/store/group/phys_bphys/DiElectronX/jfratice/r3k-analysis/output/r3k-int/run4/data/test_output_mix/psi2s/Bu_kaon_psi2s_resonant_skimmed_mix.root
+    
+    # J/psi Backgrounds
+    kstar_jpsi_pion: /eos/cms/store/group/phys_bphys/DiElectronX/jfratice/r3k-analysis/output/r3k-int/run4/data/test_output_mix/jpsi/Bu_kstar_jpsi_ks0_pi_pion_skimmed_mix.root
+    kstar_jpsi_kaon: /eos/cms/store/group/phys_bphys/DiElectronX/jfratice/r3k-analysis/output/r3k-int/run4/data/test_output_mix/jpsi/Bu_kstar_jpsi_kaon_pi0_kaon_skimmed_mix.root
+    k0star_jpsi_pion: /eos/cms/store/group/phys_bphys/DiElectronX/jfratice/r3k-analysis/output/r3k-int/run4/data/test_output_mix/jpsi/Bd_k0star_jpsi_kaon_pion_pion_skimmed_mix.root
+    k0star_jpsi_kaon: /eos/cms/store/group/phys_bphys/DiElectronX/jfratice/r3k-analysis/output/r3k-int/run4/data/test_output_mix/jpsi/Bd_k0star_jpsi_kaon_pion_kaon_skimmed_mix.root
+    chic1_jpsi_kaon: /eos/cms/store/group/phys_bphys/DiElectronX/jfratice/r3k-analysis/output/r3k-int/run4/data/test_output_mix/jpsi/Bu_kaon_chic1_jpsi_kaon_skimmed_mix.root
+    jpsipi_jpsi_pion: /eos/cms/store/group/phys_bphys/DiElectronX/jfratice/r3k-analysis/output/r3k-int/run4/data/test_output_mix/jpsi/Bu_jpsi_pi_pion_skimmed_mix.root
+    
+    # Psi(2S) Backgrounds
+    kstar_psi2s_pion: /eos/cms/store/group/phys_bphys/DiElectronX/jfratice/r3k-analysis/output/r3k-int/run4/data/test_output_mix/psi2s/Bu_kstar_psi2s_KS0_pi_pion_skimmed_mix.root
+    k0star_psi2s_pion: /eos/cms/store/group/phys_bphys/DiElectronX/jfratice/r3k-analysis/output/r3k-int/run4/data/test_output_mix/psi2s/Bd_k0star_psi2s_kaon_pion_pion_skimmed_mix.root
+    k0star_psi2s_kaon: /eos/cms/store/group/phys_bphys/DiElectronX/jfratice/r3k-analysis/output/r3k-int/run4/data/test_output_mix/psi2s/Bd_k0star_psi2s_kaon_pion_kaon_skimmed_mix.root
+    
+    # Low q2 (Rare) Backgrounds
+    kstar_pion: /eos/cms/store/group/phys_bphys/DiElectronX/jfratice/r3k-analysis/output/r3k-int/run4/data/test_output_mix/lowq2/Bu_kstar_K0S_pi_pion_skimmed_mix.root
+    k0star_pion: /eos/cms/store/group/phys_bphys/DiElectronX/jfratice/r3k-analysis/output/r3k-int/run4/data/test_output_mix/lowq2/Bd_k0star_kaon_pi_pion_skimmed_mix.root
+    k0star_kaon: /eos/cms/store/group/phys_bphys/DiElectronX/jfratice/r3k-analysis/output/r3k-int/run4/data/test_output_mix/lowq2/Bd_k0star_kaon_pi_kaon_skimmed_mix.root
+  #tree_name: mytree
+  tree_name: Events
+  b_mass_branch: Bmass
+  ll_mass_branch: Mll
+
+model:
+  template_file: model_template.py
+  features: [Bprob, BsLxy, L2iso/L2pt, Bcos, Kiso/Kpt, LKdz, LKdr, Passymetry, Kip3d/Kip3dErr, L1id, L2id]
+  feature_labels: 
+    - "$prob({\\rm SV})$"
+    - "$L_{xy}/\\sigma_{L_{xy}}$"
+    - "$I_{\\Delta R=0.4}^{\\rm rel}(e_2)/p_{T}(e_2)$"
+    - "$\\cos{\\alpha_{2D}}$"
+    - "$I_{\\Delta R=0.4}^{\\rm rel}(K^{\\pm})/p_{T}(K^{\\pm})$"
+    - "$dz(e, K^{\\pm})$"
+    - "$\\Delta R(e, K^{\\pm})$"
+    - "$\\frac{|\\mathbf{p(e^{+}e^{-})}\\times \\mathbf{r}| - |\\mathbf{p(K^{\\pm})}\\times \\mathbf{r}|}{|\\mathbf{p(e^{+}e^{-})}\\times \\mathbf{r}| + |\\mathbf{p(K^{\\pm})}\\times \\mathbf{r}|}$"
+    - "$d_{3D}(K^{\\pm}, e^{+}e^{-})/\\sigma_{d_{3D}}$"
+    - "ID($e_1$)"
+    - "ID($e_2$)"
+  sample_weights: total_weight
+  preselection: 
+
+output:
+  output_dir: /afs/cern.ch/user/j/jfratice/public/rk_analysis/BDT/r3k-bdttools/outputs/5_04_26/model_final
+  score_branch: bdt_score
+  output_branches:
+    common: [run, luminosityBlock, event, Bmass, Mll, trigger_OR]
+    data: [total_weight]
+    mc: [total_weight]
+  log_file: log.txt
