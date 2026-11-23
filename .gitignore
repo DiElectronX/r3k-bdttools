@@ -7,3 +7,6 @@ __pycache__/
 /**/*.pickle
 /**/*.png
 /**/*.pdf
+outputs/
+L1_*/
+*.log

@@ -143,14 +143,31 @@ def summarize_tree_counts(name, counts, lgr):
 
 def model_predict_scores(model, X):
     """
-    Score prediction for fitted XGBClassifier models
-    - Used to score signal MC and sideband data 
+    Score prediction for fitted XGBClassifier models.
+
+    Use predict_proba when available so the sklearn wrapper respects
+    best_iteration / early stopping. If using the raw booster, explicitly
+    pass iteration_range when best_iteration exists.
     """
     if X is None or X.shape[0] == 0:
         return np.empty((0,), dtype=np.float64)
 
-    booster = model.get_booster()
-    scores = booster.inplace_predict(X)
+    # Preferred for XGBClassifier
+    if hasattr(model, "predict_proba"):
+        scores = model.predict_proba(X)[:, 1]
+        return np.asarray(scores, dtype=np.float64).reshape(-1)
+
+    booster = model.get_booster() if hasattr(model, "get_booster") else model
+
+    best_iteration = getattr(model, "best_iteration", None)
+    if best_iteration is not None:
+        scores = booster.inplace_predict(
+            X,
+            iteration_range=(0, int(best_iteration) + 1),
+        )
+    else:
+        scores = booster.inplace_predict(X)
+
     scores = np.asarray(scores, dtype=np.float64)
 
     if scores.ndim > 1:
@@ -175,83 +192,30 @@ def predict_score_matrix(models, X):
 
 def append_extra_branches_to_root(root_path, tree_name, branch_arrays, lgr=None):
     """
-    Append extra branches to an existing ROOT TTree in UPDATE mode
+    Safe version: do NOT reopen the ROOT file in UPDATE mode.
 
-    If UPDATE on the target file fails, save a .npz file instead so the
-    extra information is not lost.
+    The diagnostic branches are saved to a sidecar .npz file instead.
+    This avoids PyROOT / ROOT I/O segfaults from TFile UPDATE + TTree.GetEntry.
     """
-    try:
-        import ROOT
+    root_path = Path(root_path)
+    npz_file = root_path.with_suffix(root_path.suffix + ".extra_branches.npz")
 
-        f = ROOT.TFile.Open(str(root_path), "UPDATE")
-        if not f or f.IsZombie():
-            raise RuntimeError(f"Could not open ROOT file for UPDATE: {root_path}")
+    branch_arrays_np = {
+        name: np.asarray(arr)
+        for name, arr in branch_arrays.items()
+    }
 
-        tree = f.Get(tree_name)
-        if tree is None:
-            f.Close()
-            raise RuntimeError(f"Could not find tree '{tree_name}' in {root_path}")
+    np.savez_compressed(npz_file, **branch_arrays_np)
 
-        n_entries = tree.GetEntries()
+    msg = (
+        "Saved diagnostic BDT branches to sidecar file instead of "
+        "updating ROOT file directly: {}".format(npz_file)
+    )
 
-        for name, arr in branch_arrays.items():
-            if len(arr) != n_entries:
-                f.Close()
-                raise ValueError(
-                    f"Branch {name} has length {len(arr)} but tree has {n_entries} entries"
-                )
-
-        existing = {br.GetName() for br in tree.GetListOfBranches()}
-        for name in branch_arrays.keys():
-            if name in existing:
-                f.Close()
-                raise RuntimeError(f"Branch '{name}' already exists in {root_path}")
-
-        buffers = {}
-        branches = {}
-
-        for name, arr in branch_arrays.items():
-            arr_np = np.asarray(arr)
-
-            if np.issubdtype(arr_np.dtype, np.floating):
-                buf = array("f", [0.0])
-                br = tree.Branch(name, buf, f"{name}/F")
-            elif np.issubdtype(arr_np.dtype, np.integer):
-                buf = array("i", [0])
-                br = tree.Branch(name, buf, f"{name}/I")
-            else:
-                f.Close()
-                raise TypeError(f"Unsupported dtype for branch '{name}': {arr_np.dtype}")
-
-            buffers[name] = buf
-            branches[name] = br
-
-        dtype_map = {name: np.asarray(arr).dtype for name, arr in branch_arrays.items()}
-
-        for i in range(n_entries):
-            tree.GetEntry(i)
-            for name, arr in branch_arrays.items():
-                val = arr[i]
-                if np.issubdtype(dtype_map[name], np.floating):
-                    buffers[name][0] = float(val)
-                else:
-                    buffers[name][0] = int(val)
-                branches[name].Fill()
-
-        tree.Write("", ROOT.TObject.kOverwrite)
-        f.Close()
-
-    except Exception as e:
-        npz_file = Path(root_path).with_suffix(Path(root_path).suffix + ".extra_branches.npz")
-        np.savez_compressed(npz_file, **branch_arrays)
-        msg = (
-            f"WARNING: could not append branches directly to {root_path}. "
-            f"Saved .npz instead: {npz_file}. Reason: {e}"
-        )
-        if lgr is not None:
-            lgr.log(msg, just_print=True)
-        else:
-            print(msg)
+    if lgr is not None:
+        lgr.log(msg, just_print=True)
+    else:
+        print(msg)
 
 
 def save_manifest(

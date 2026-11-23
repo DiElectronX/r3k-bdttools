@@ -23,11 +23,16 @@ def plot_scores(data, path, show=False, logy=False):
     else:
         all_scores = np.array([])
 
-    min_score = np.floor(all_scores.min())
-    max_score = np.ceil(all_scores.max())
-    min_range = min_score * 1.1 if min_score < 0 else (min_score * 0.9 if min_score > 0 else min_score - .1 * max_score)
-    max_range = max_score  * 1.1
-    bins = np.linspace(min_range, max_range, 50)
+    #min_score = np.floor(all_scores.min())
+    #max_score = np.ceil(all_scores.max())
+    #min_range = min_score * 1.1 if min_score < 0 else (min_score * 0.9 if min_score > 0 else min_score - .1 * max_score)
+    #max_range = max_score  * 1.1
+    #min_range = 0.980
+    #max_range = 1.005
+
+    xmin, xmax = 0.990, 1.001
+    nbins = 15
+    bins = np.linspace(xmin, xmax, nbins + 1)
     bin_centers = 0.5 * (bins[1:] + bins[:-1])
 
     fig, ax = plt.subplots(figsize=(8, 6), layout='constrained')
@@ -109,6 +114,7 @@ def plot_scores(data, path, show=False, logy=False):
         
     ax.set_xlabel('BDT Score', loc='right')
     ax.set_ylabel('nEvents (A.U.)', loc='top')
+    
 
     # Optional: set Y scale
     if logy:
